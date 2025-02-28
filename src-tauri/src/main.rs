@@ -8,7 +8,7 @@ mod imap_client;
 use anyhow::Result;
 use sea_orm::ActiveModelTrait;
 use std::env;
-use tauri::{command, ActivationPolicy, Manager};
+use tauri::{command, ActivationPolicy};
 
 use entity::*;
 

@@ -9,7 +9,7 @@ use entity::message;
 use sea_orm::ActiveModelBehavior;
 use sea_orm::ActiveValue::Set;
 
-pub fn parse_email_to_message(mail_body: &str, id: Option<i32>) -> Result<message::ActiveModel> {
+pub fn parse_email_to_message(mail_body: &str, _id: Option<i32>) -> Result<message::ActiveModel> {
     // Parse the email
     let parsed_mail = mailparse::parse_mail(mail_body.as_bytes())?;
 
