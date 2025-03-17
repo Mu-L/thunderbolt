@@ -1,6 +1,4 @@
-import { Sidebar } from '@/components/sidebar'
-import { Button } from '@/components/ui/button'
-import { ChatNavButton } from '@/components/ui/chat-nav-button'
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from '@/components/ui/sidebar'
 import { useDrizzle } from '@/db/provider'
 import { chatThreadsTable } from '@/db/schema'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -41,33 +39,62 @@ export function ChatLayout() {
 
   return (
     <>
+      <div>
+        <SidebarTrigger />
+      </div>
       <Sidebar>
-        <div className="flex flex-col gap-4">
-          <Button asChild variant="outline">
-            <Link to="/settings/accounts">
-              <Settings className="size-4" />
-              Settings
-            </Link>
-          </Button>
-          <div className="flex flex-col gap-2">
-            <Button onClick={createNewChat} variant="ghost" className="justify-start">
-              New Chat
-            </Button>
-            <Button asChild variant="ghost" className="justify-start">
-              <Link to="/ui-kit">UI Kit</Link>
-            </Button>
-            <Button asChild variant="ghost" className="justify-start">
-              <Link to="/devtools">Dev Tools</Link>
-            </Button>
-          </div>
-          <div className="flex flex-col gap-2">
-            {chatThreads.map((thread) => (
-              <ChatNavButton key={thread.id} asChild threadId={thread.id} className="justify-start" chatTitle={thread.id}>
-                <Link to={`/chats/${thread.id}`}>{thread.title}</Link>
-              </ChatNavButton>
-            ))}
-          </div>
-        </div>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/settings/accounts">
+                      <Settings className="size-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={createNewChat}>
+                    <span>New Chat</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/ui-kit">
+                      <span>UI Kit</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link to="/devtools">
+                      <span>Dev Tools</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {chatThreads.map((thread) => (
+                  <SidebarMenuItem key={thread.id}>
+                    <SidebarMenuButton asChild>
+                      <Link to={`/chats/${thread.id}`}>{thread.title}</Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
       </Sidebar>
       <div className="flex flex-col w-full">
         <Outlet />

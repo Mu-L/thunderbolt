@@ -1,5 +1,5 @@
-import { Sidebar } from '@/components/sidebar'
 import { Button } from '@/components/ui/button'
+import { Sidebar } from '@/components/ui/sidebar'
 import { ArrowLeft } from 'lucide-react'
 import { Link, Outlet } from 'react-router'
 

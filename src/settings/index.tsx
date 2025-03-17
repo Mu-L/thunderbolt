@@ -1,13 +1,10 @@
-import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
 import { ReactNode } from 'react'
-import { Link } from 'react-router'
-import { Sidebar } from '../components/sidebar'
+// import { Sidebar } from '../components/app-sidebar'
 
 export default function Settings({ children }: { children?: ReactNode }) {
   return (
     <>
-      <Sidebar>
+      {/* <Sidebar>
         <div className="flex flex-col gap-4">
           <Button asChild variant="outline">
             <Link to="/">
@@ -24,7 +21,7 @@ export default function Settings({ children }: { children?: ReactNode }) {
             </Button>
           </div>
         </div>
-      </Sidebar>
+      </Sidebar> */}
       <div className="flex flex-col gap-4 p-4 w-full">{children}</div>
     </>
   )

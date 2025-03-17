@@ -1,11 +1,8 @@
-import { ArrowLeft, PanelLeft, PanelRight, Paperclip, SquarePen } from 'lucide-react'
-import { Link } from 'react-router'
-import { Sidebar } from './components/sidebar'
+import { PanelLeft, PanelRight, Paperclip, SquarePen } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { MailCard, MailCardList } from './components/ui/mail-card'
 import { MailThreadButton } from './components/ui/mail-thread-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select'
-import { UserNavButton } from './components/ui/user-nav-button'
 
 export default function UiKitPage() {
   const fruitOptions = [
@@ -63,32 +60,6 @@ export default function UiKitPage() {
 
   return (
     <>
-      <Sidebar>
-        <div className="flex flex-col gap-4">
-          <Button asChild variant="outline">
-            <Link to="/">
-              <ArrowLeft className="size-4" />
-              Home
-            </Link>
-          </Button>
-          <div className="flex flex-col gap-2">
-            <Button asChild variant="ghost" className="justify-start">
-              <Link to="/settings/accounts">Accounts</Link>
-            </Button>
-            <Button asChild variant="ghost" className="justify-start">
-              <Link to="/settings/models">Models</Link>
-            </Button>
-            <Button asChild variant="ghost" className="justify-start font-medium text-primary">
-              <Link to="/ui-kit">UI Kit</Link>
-            </Button>
-            <Button asChild variant="ghost" className="justify-start pl-6">
-              <Link to="/devtools">Dev Tools</Link>
-            </Button>
-          </div>
-
-          <UserNavButton />
-        </div>
-      </Sidebar>
       <div className="flex flex-col gap-4 p-4 w-full">
         <h2 className="text-2xl font-bold mb-4">Select</h2>
         <Select>

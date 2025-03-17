@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router'
 
 import ChatDetailPage from '@/chats/detail'
 import ChatLayout from '@/chats/layout'
+import { SidebarProvider } from '@/components/ui/sidebar'
 import AccountsSettingsPage from '@/settings/accounts'
 import Settings from '@/settings/index'
 import ModelsSettingsPage from '@/settings/models'
@@ -81,27 +82,29 @@ export const App = () => {
         <ImapProvider client={initData.imap}>
           <ImapSyncProvider client={initData.imapSync}>
             <SettingsProvider initialSettings={initData.settings} section="main">
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Layout />}>
-                    {/* Home routes with HomeLayout */}
-                    <Route element={<ChatLayout />}>
-                      <Route index element={<ChatNewPage />} />
-                      <Route path="chats/:chatThreadId" element={<ChatDetailPage />} />
-                    </Route>
+              <SidebarProvider>
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Layout />}>
+                      {/* Home routes with HomeLayout */}
+                      <Route element={<ChatLayout />}>
+                        <Route index element={<ChatNewPage />} />
+                        <Route path="chats/:chatThreadId" element={<ChatDetailPage />} />
+                      </Route>
 
-                    {/* Settings routes with SettingsLayout */}
-                    <Route path="settings" element={<SettingsLayout />}>
-                      <Route index element={<Settings />} />
-                      <Route path="accounts" element={<AccountsSettingsPage />} />
-                      <Route path="models" element={<ModelsSettingsPage />} />
-                    </Route>
+                      {/* Settings routes with SettingsLayout */}
+                      <Route path="settings" element={<SettingsLayout />}>
+                        <Route index element={<Settings />} />
+                        <Route path="accounts" element={<AccountsSettingsPage />} />
+                        <Route path="models" element={<ModelsSettingsPage />} />
+                      </Route>
 
-                    <Route path="ui-kit" element={<UiKitPage />} />
-                    <Route path="devtools" element={<DevToolsPage />} />
-                  </Route>
-                </Routes>
-              </BrowserRouter>
+                      <Route path="ui-kit" element={<UiKitPage />} />
+                      <Route path="devtools" element={<DevToolsPage />} />
+                    </Route>
+                  </Routes>
+                </BrowserRouter>
+              </SidebarProvider>
             </SettingsProvider>
           </ImapSyncProvider>
         </ImapProvider>
