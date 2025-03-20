@@ -35,6 +35,11 @@ const init = async (): Promise<InitData> => {
 
   await migrate({ sqlite })
 
+  // This is done via migration but I'm putting it here just in case we reset the migrations.
+  // await db.run(sql`
+  //   CREATE INDEX IF NOT EXISTS embeddings_test_index ON embeddings (libsql_vector_idx(embedding));
+  // `)
+
   const settings = (await getSettings<SettingsType>(db, 'main')) || {}
 
   const imap = new ImapClient()

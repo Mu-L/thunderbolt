@@ -86,7 +86,9 @@ keyring = { version = "3.6.2", features = [
     "sync-secret-service"
 ] }
 tauri-plugin-fs = "2"
-libsql = { version = "0.6.0", features = ["encryption"] }
+libsql = { git = "https://github.com/libsql/libsql.git", rev = "d980ce13b9c4b3f05b03dd1b9ca2fb2765c0cb68", features = [
+    "encryption"
+] }
 base64 = "0.22.1"
 indexmap = "2.8.0"
 bytes = "1.10.1"
