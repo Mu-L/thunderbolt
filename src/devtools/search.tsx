@@ -1,3 +1,4 @@
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form'
@@ -99,33 +100,28 @@ export default function SearchSection() {
           <div className="mt-4">
             <h3 className="text-lg font-medium mb-2">Results</h3>
             <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-4 overflow-auto max-h-96">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-300 dark:border-gray-700">
-                    <th className="text-left p-2 text-sm font-semibold">Similarity</th>
-                    <th className="text-left p-2 text-sm font-semibold">Subject</th>
-                    <th className="text-left p-2 text-sm font-semibold">From</th>
-                    <th className="text-left p-2 text-sm font-semibold">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((result, index) => (
-                    <tr key={index} className={`hover:bg-gray-200 dark:hover:bg-gray-700 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-850' : ''}`}>
-                      <td className="p-2 text-sm">
+              <Accordion type="single" className="w-full">
+                {results.map((result, index) => (
+                  <AccordionItem key={index} value={`item-${index}`} className={`mb-2 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-850' : 'bg-white dark:bg-gray-900'}`}>
+                    <AccordionTrigger className="px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-t-md w-full">
+                      <div className="grid grid-cols-4 w-full text-left">
                         <div className="flex items-center">
                           <div className="w-12 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden mr-2">
                             <div className="h-full bg-green-500" style={{ width: `${(1 - (result.distance || 0)) * 100}%` }} />
                           </div>
-                          <span>{(1 - (result.distance || 0)).toFixed(3)}</span>
+                          <span className="text-sm">{(1 - (result.distance || 0)).toFixed(3)}</span>
                         </div>
-                      </td>
-                      <td className="p-2 text-sm font-medium truncate max-w-[200px]">{result.email_message?.subject || 'No subject'}</td>
-                      <td className="p-2 text-sm truncate max-w-[200px]">{result.email_message?.from || 'Unknown'}</td>
-                      <td className="p-2 text-sm whitespace-nowrap">{result.email_message?.date ? new Date(result.email_message.date).toLocaleString() : 'Unknown date'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div className="text-sm font-medium truncate max-w-[200px]">{result.email_message?.subject || 'No subject'}</div>
+                        <div className="text-sm truncate max-w-[200px]">{result.email_message?.from || 'Unknown'}</div>
+                        <div className="text-sm whitespace-nowrap">{result.email_message?.date ? new Date(result.email_message.date).toLocaleString() : 'Unknown date'}</div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="bg-white dark:bg-gray-900 p-4 rounded-b-md border border-gray-200 dark:border-gray-700">
+                      <div className="whitespace-pre-wrap">{result.email_message?.text_body || 'No message content available'}</div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </div>
           </div>
         )}

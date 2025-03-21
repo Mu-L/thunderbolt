@@ -46,7 +46,7 @@ export class Indexer {
 
   async embedNextBatch() {
     const messages = await this.fetchNextBatch()
-    const texts = messages.map((message) => message.email_messages.text_body)
+    const texts = messages.map((message) => (message.email_messages.text_body.trim().length < 50 ? '<No Message Body>' : message.email_messages.text_body.trim()))
 
     console.log(texts)
 

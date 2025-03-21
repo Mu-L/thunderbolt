@@ -38,15 +38,20 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
  */
 export async function search(db: DrizzleContextType['db'], searchText: string, limit: number = 5): Promise<any[]> {
   try {
-    const embeddings = await generateEmbeddings([searchText])
-    const embedding = embeddings[0] // Get the first embedding
+    const [embedding] = await generateEmbeddings([searchText])
+
+    // This is done via migration but I'm putting it here just in case we reset the migrations.
+    const indexCreationResult = await db.run(sql`
+      CREATE INDEX IF NOT EXISTS embeddings_index ON embeddings (libsql_vector_idx(embedding));
+    `)
+    console.log('Index Created (If Not Exists):', indexCreationResult)
 
     const results = await db
       .select({
         distance: sql`vector_distance_cos(${embeddingsTable.embedding}, vector32(${JSON.stringify(embedding)}))`.as('distance'),
         email_message: emailMessagesTable,
       })
-      .from(sql`vector_top_k('embeddings_test_index', vector32(${JSON.stringify(embedding)}), ${limit}) as r`)
+      .from(sql`vector_top_k('embeddings_index', vector32(${JSON.stringify(embedding)}), ${limit}) as r`)
       .leftJoin(embeddingsTable, sql`${embeddingsTable}.rowid = r.id`)
       .leftJoin(emailMessagesTable, eq(emailMessagesTable.id, sql`email_message_id`))
       .orderBy(sql`distance ASC`)
