@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDrizzle } from '@/db/provider'
 import { search } from '@/lib/embeddings'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -102,22 +103,47 @@ export default function SearchSection() {
             <div className="bg-gray-100 dark:bg-gray-800 rounded-md p-4 overflow-auto max-h-96">
               <Accordion type="single" className="w-full">
                 {results.map((result, index) => (
-                  <AccordionItem key={index} value={`item-${index}`} className={`mb-2 ${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-850' : 'bg-white dark:bg-gray-900'}`}>
-                    <AccordionTrigger className="px-4 py-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-t-md w-full">
-                      <div className="grid grid-cols-4 w-full text-left">
+                  <AccordionItem key={index} value={`item-${index}`} className="mb-4 bg-white dark:bg-gray-900 rounded-md shadow-sm">
+                    <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-t-md w-full">
+                      <div className="grid grid-cols-3 w-full text-left gap-2">
                         <div className="flex items-center">
                           <div className="w-12 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden mr-2">
                             <div className="h-full bg-green-500" style={{ width: `${(1 - (result.distance || 0)) * 100}%` }} />
                           </div>
-                          <span className="text-sm">{(1 - (result.distance || 0)).toFixed(3)}</span>
+                          <span className="text-sm font-medium">{(1 - (result.distance || 0)).toFixed(3)}</span>
                         </div>
-                        <div className="text-sm font-medium truncate max-w-[200px]">{result.email_message?.subject || 'No subject'}</div>
-                        <div className="text-sm truncate max-w-[200px]">{result.email_message?.from || 'Unknown'}</div>
-                        <div className="text-sm whitespace-nowrap">{result.email_message?.date ? new Date(result.email_message.date).toLocaleString() : 'Unknown date'}</div>
+                        <div className="text-sm font-medium truncate">{result.email_message?.subject || 'No subject'}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 text-right">{result.email_message?.date ? new Date(result.email_message.date).toLocaleString() : 'Unknown date'}</div>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="bg-white dark:bg-gray-900 p-4 rounded-b-md border border-gray-200 dark:border-gray-700">
-                      <div className="whitespace-pre-wrap">{result.email_message?.text_body || 'No message content available'}</div>
+                    <AccordionContent className="border-t border-gray-100 dark:border-gray-800">
+                      <Tabs defaultValue="messages" className="w-full">
+                        <TabsList className="mb-2 px-4 pt-2">
+                          <TabsTrigger value="messages">Messages</TabsTrigger>
+                          <TabsTrigger value="embedding">Embedding Text</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="messages" className="px-4 pb-4">
+                          <div className="space-y-4">
+                            {/* We would need to fetch the messages for this thread here */}
+                            {result.email_message && (
+                              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                                <div className="flex justify-between mb-2">
+                                  <div className="font-medium">{result.email_message.from}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">{new Date(result.email_message.date).toLocaleString()}</div>
+                                </div>
+                                <div className="text-sm whitespace-pre-wrap">{result.email_message.text_body}</div>
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="embedding" className="px-4 pb-4">
+                          <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                            <div className="text-xs font-mono whitespace-pre-wrap overflow-auto max-h-60">{result.as_text || 'No embedding text available'}</div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </AccordionContent>
                   </AccordionItem>
                 ))}

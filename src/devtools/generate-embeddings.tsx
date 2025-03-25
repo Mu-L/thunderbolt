@@ -24,7 +24,7 @@ export default function GenerateEmbeddingsSection() {
   const [maxBatchTime, setMaxBatchTime] = useState<number>(5000) // 5 seconds default
   const [slowBatches, setSlowBatches] = useState<Array<{ batchNumber: number; time: number; emails: EmailMessage[] }>>([])
   const [currentOffset, setCurrentOffset] = useState<number>(0)
-  const [slowMessages, setSlowMessages] = useState<string[]>([])
+  const [slowThreads, setSlowThreads] = useState<string[]>([])
 
   useEffect(() => {
     // Initialize the indexer
@@ -36,12 +36,12 @@ export default function GenerateEmbeddingsSection() {
           await indexerRef.current.updateProgress()
           const status = indexerRef.current.getStatus()
           setProgress({
-            total: status.messageCount,
+            total: status.threadCount,
             processed: status.embeddingsCount,
           })
 
           // Update debug info
-          setSlowMessages(status.debug.slowMessages)
+          setSlowThreads(status.debug.slowThreads)
           if (status.debug.totalEmbeddingsProcessed > 0) {
             setTotalEmbeddingTime(status.debug.totalEmbeddingTime)
             setTotalEmbeddingsProcessed(status.debug.totalEmbeddingsProcessed)
@@ -81,12 +81,12 @@ export default function GenerateEmbeddingsSection() {
           const status = indexerRef.current.getStatus()
 
           setProgress({
-            total: status.messageCount,
+            total: status.threadCount,
             processed: status.embeddingsCount,
           })
 
           // Update debug info
-          setSlowMessages(status.debug.slowMessages)
+          setSlowThreads(status.debug.slowThreads)
           if (status.debug.totalEmbeddingsProcessed > 0) {
             setTotalEmbeddingTime(status.debug.totalEmbeddingTime)
             setTotalEmbeddingsProcessed(status.debug.totalEmbeddingsProcessed)
@@ -128,12 +128,12 @@ export default function GenerateEmbeddingsSection() {
 
       const status = indexerRef.current.getStatus()
       setProgress({
-        total: status.messageCount,
+        total: status.threadCount,
         processed: status.embeddingsCount,
       })
 
       // Update debug info
-      setSlowMessages(status.debug.slowMessages)
+      setSlowThreads(status.debug.slowThreads)
       if (status.debug.totalEmbeddingsProcessed > 0) {
         setTotalEmbeddingTime(status.debug.totalEmbeddingTime)
         setTotalEmbeddingsProcessed(status.debug.totalEmbeddingsProcessed)
@@ -162,7 +162,7 @@ export default function GenerateEmbeddingsSection() {
     <Card>
       <CardHeader>
         <CardTitle>Generate Embeddings</CardTitle>
-        <CardDescription>Generate and store embeddings for email messages</CardDescription>
+        <CardDescription>Generate and store embeddings for email threads</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -196,7 +196,7 @@ export default function GenerateEmbeddingsSection() {
         <div className="flex items-center gap-2 mt-2">
           <Switch checked={useCustomText} onCheckedChange={setUseCustomText} id="custom-text-toggle" disabled={isGenerating} />
           <label htmlFor="custom-text-toggle" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
-            Use custom text instead of email body
+            Use custom text instead of thread content
           </label>
         </div>
 
@@ -206,7 +206,7 @@ export default function GenerateEmbeddingsSection() {
           <div className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-in-out" style={{ width: `${progressPercentage}%` }}></div>
         </div>
         <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
-          {progress.processed} of {progress.total} emails processed ({progressPercentage}%)
+          {progress.processed} of {progress.total} threads processed ({progressPercentage}%)
         </div>
 
         <div className="grid grid-cols-2 gap-4 mt-2">
@@ -276,22 +276,22 @@ export default function GenerateEmbeddingsSection() {
           </Accordion>
         )}
 
-        {slowMessages.length > 0 && (
+        {slowThreads.length > 0 && (
           <Accordion type="single" collapsible className="mt-4">
-            <AccordionItem value="slow-messages">
+            <AccordionItem value="slow-threads">
               <AccordionTrigger className="flex items-center gap-2">
                 <AlertCircle size={16} className="text-red-500" />
-                <span>Slow Messages ({slowMessages.length})</span>
+                <span>Slow Threads ({slowThreads.length})</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
-                  {slowMessages.map((messageId, index) => (
+                  {slowThreads.map((threadId, index) => (
                     <div key={index} className="p-2 bg-gray-100 dark:bg-gray-800 rounded border border-red-300">
                       <div className="flex justify-between">
-                        <span className="font-medium">Message ID</span>
-                        <span className="text-red-500">{messageId}</span>
+                        <span className="font-medium">Thread ID</span>
+                        <span className="text-red-500">{threadId}</span>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">Processing time exceeded {indexerRef.current?.getStatus().debug.slowMessageThreshold || 1000}ms</div>
+                      <div className="text-xs text-gray-500 mt-1">Processing time exceeded {indexerRef.current?.getStatus().debug.slowThreadThreshold || 1000}ms</div>
                     </div>
                   ))}
                 </div>

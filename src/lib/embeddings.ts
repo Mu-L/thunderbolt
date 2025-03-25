@@ -1,4 +1,4 @@
-import { emailMessagesTable, embeddingsTable } from '@/db/schema'
+import { emailMessagesTable, emailThreadsTable, embeddingsTable } from '@/db/schema'
 import { DrizzleContextType } from '@/types'
 import { invoke } from '@tauri-apps/api/core'
 import { eq, sql } from 'drizzle-orm'
@@ -49,11 +49,13 @@ export async function search(db: DrizzleContextType['db'], searchText: string, l
     const results = await db
       .select({
         distance: sql`vector_distance_cos(${embeddingsTable.embedding}, vector32(${JSON.stringify(embedding)}))`.as('distance'),
+        email_thread_id: embeddingsTable.email_thread_id,
         email_message: emailMessagesTable,
       })
       .from(sql`vector_top_k('embeddings_index', vector32(${JSON.stringify(embedding)}), ${limit}) as r`)
       .leftJoin(embeddingsTable, sql`${embeddingsTable}.rowid = r.id`)
-      .leftJoin(emailMessagesTable, eq(emailMessagesTable.id, sql`email_message_id`))
+      .leftJoin(emailThreadsTable, eq(emailThreadsTable.id, embeddingsTable.email_thread_id))
+      .leftJoin(emailMessagesTable, eq(emailMessagesTable.email_thread_id, emailThreadsTable.id))
       .orderBy(sql`distance ASC`)
 
     return results

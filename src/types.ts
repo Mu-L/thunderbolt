@@ -2,7 +2,7 @@ import { Message, ReasoningUIPart, SourceUIPart, TextUIPart, ToolInvocationUIPar
 import { InferSelectModel } from 'drizzle-orm'
 import { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
 import * as schema from './db/schema'
-import { chatMessagesTable, chatThreadsTable, emailMessagesTable, embeddingsTable, settingsTable } from './db/schema'
+import { chatMessagesTable, chatThreadsTable, emailMessagesTable, emailThreadsTable, embeddingsTable, settingsTable } from './db/schema'
 import ImapClient from './imap/imap'
 import Database from './lib/libsql'
 import { ImapSyncClient } from './sync'
@@ -46,6 +46,7 @@ export type ChatMessage = InferSelectModel<typeof chatMessagesTable>
 export type ChatThread = InferSelectModel<typeof chatThreadsTable>
 export type Setting = InferSelectModel<typeof settingsTable>
 export type EmailMessage = InferSelectModel<typeof emailMessagesTable>
+export type EmailThread = InferSelectModel<typeof emailThreadsTable>
 export type Embedding = InferSelectModel<typeof embeddingsTable>
 
 export type ParsedEmail = {

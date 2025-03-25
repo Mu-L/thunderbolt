@@ -99,7 +99,7 @@ impl ImapSync {
     ) -> Result<(usize, bool)> {
         println!("Syncing messages from {} (index {})", mailbox, start_index);
 
-        // Fetch messages from mailbox
+        // Fetch messages from mailbox in reverse order (newest first)
         let messages = self
             .imap_client
             .fetch_inbox(mailbox, Some(start_index), Some(count))
@@ -155,29 +155,46 @@ impl ImapSync {
     ) -> Result<usize> {
         let mut total_saved = 0;
 
-        // Note that IMAP indexes start at 1
-        let mut current_index = 1;
+        // Get the total number of messages in the mailbox
+        let mailboxes = self.imap_client.list_mailboxes()?;
+        let total_messages = mailboxes.get(mailbox).copied().unwrap_or(0) as usize;
+
+        if total_messages == 0 {
+            return Ok(0);
+        }
+
+        // Start from the most recent message (highest index)
+        // IMAP uses 1-based indexing
+        let mut current_index = total_messages;
 
         loop {
+            // Calculate the start index for the current page
+            // We need to handle the case where current_index < page_size
+            let start_index = if current_index < page_size {
+                1 // Start from the beginning
+            } else {
+                current_index - page_size + 1 // Start page_size messages before current_index
+            };
+
             let (saved, has_more_messages) = self
-                .sync_messages(mailbox, current_index, page_size, since)
+                .sync_messages(mailbox, start_index, page_size, since)
                 .await
                 .with_context(|| {
                     format!(
                         "Failed to sync messages from {} (index {})",
-                        mailbox, current_index
+                        mailbox, start_index
                     )
                 })?;
 
             total_saved += saved;
 
-            // If there are no more messages to fetch, we're done
-            if !has_more_messages {
+            // If we've reached the beginning of the mailbox or there are no more messages to fetch, we're done
+            if start_index == 1 || !has_more_messages {
                 break;
             }
 
-            // Move to the next page
-            current_index += page_size;
+            // Move to the previous page
+            current_index = start_index - 1;
         }
 
         Ok(total_saved)
@@ -241,8 +258,12 @@ impl ImapSync {
     }
 
     fn extract_from(message: &Message<'_>) -> Result<String> {
-        if let Some(address) = message.from() {
-            return Ok(format!("{:?}", address));
+        if let Some(addresses) = message.from() {
+            if let Some(addr) = addresses.first() {
+                let name = addr.name().unwrap_or_default();
+                let email = addr.address().unwrap_or_default();
+                return Ok(format!("{} <{}>", name, email));
+            }
         }
         Err(anyhow::anyhow!("From field not found"))
     }

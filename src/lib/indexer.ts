@@ -1,7 +1,8 @@
-import { emailMessagesTable, embeddingsTable } from '@/db/schema'
+import { emailMessagesTable, emailThreadsTable, embeddingsTable } from '@/db/schema'
 import { DrizzleContextType } from '@/types'
 import { count, eq, sql } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
+import { threadAsText } from './as-text'
 import { generateEmbeddings } from './embeddings'
 
 export class Indexer {
@@ -9,11 +10,11 @@ export class Indexer {
   private batchSize: number
   private isIndexing: boolean
   private shouldCancelAfterNextBatch: boolean
-  private messageCount: number
+  private threadCount: number
   private embeddingsCount: number
   private debug: {
-    slowMessageThreshold: number
-    slowMessages: string[]
+    slowThreadThreshold: number
+    slowThreads: string[]
     totalEmbeddingTime: number
     totalEmbeddingsProcessed: number
   }
@@ -23,30 +24,55 @@ export class Indexer {
     this.batchSize = batchSize
     this.isIndexing = false
     this.shouldCancelAfterNextBatch = false
-    this.messageCount = 0
+    this.threadCount = 0
     this.embeddingsCount = 0
     this.debug = {
-      slowMessageThreshold: 1000,
-      slowMessages: [],
+      slowThreadThreshold: 5000,
+      slowThreads: [],
       totalEmbeddingTime: 0,
       totalEmbeddingsProcessed: 0,
     }
   }
 
   async fetchNextBatch() {
-    const messages = await this.db
+    // Get threads that don't have embeddings yet
+    const threads = await this.db
       .select()
-      .from(emailMessagesTable)
-      .leftJoin(embeddingsTable, eq(emailMessagesTable.id, embeddingsTable.email_message_id))
+      .from(emailThreadsTable)
+      .leftJoin(embeddingsTable, eq(emailThreadsTable.id, embeddingsTable.email_thread_id))
       .where(sql`${embeddingsTable.id} IS NULL`)
-      .orderBy(sql`${emailMessagesTable.date} DESC`)
+      .orderBy(sql`${emailThreadsTable.date} DESC`)
       .limit(this.batchSize)
-    return messages
+
+    // For each thread, fetch its messages
+    const threadsWithMessages = await Promise.all(
+      threads.map(async (thread) => {
+        const messages = await this.db
+          .select()
+          .from(emailMessagesTable)
+          .where(eq(emailMessagesTable.email_thread_id, thread.email_threads.id))
+          .orderBy(sql`${emailMessagesTable.date} ASC`)
+
+        return {
+          thread: thread.email_threads,
+          messages,
+        }
+      })
+    )
+
+    return threadsWithMessages
   }
 
   async embedNextBatch() {
-    const messages = await this.fetchNextBatch()
-    const texts = messages.map((message) => (message.email_messages.text_body.trim().length < 50 ? '<No Message Body>' : message.email_messages.text_body.trim()))
+    const threadsWithMessages = await this.fetchNextBatch()
+
+    // Create text representation for each thread
+    const texts = threadsWithMessages.map(({ thread, messages }) => {
+      if (messages.length === 0) {
+        return `Thread: ${thread.subject || '(No Subject)'}\n<No Messages>`
+      }
+      return threadAsText(thread, messages)
+    })
 
     console.log(texts)
 
@@ -58,13 +84,14 @@ export class Indexer {
     this.debug.totalEmbeddingTime += embeddingTime
     this.debug.totalEmbeddingsProcessed += texts.length
 
-    if (embeddingTime > this.debug.slowMessageThreshold) {
-      this.debug.slowMessages.push(messages[0].email_messages.id)
+    if (embeddingTime > this.debug.slowThreadThreshold) {
+      this.debug.slowThreads.push(threadsWithMessages[0].thread.id)
     }
 
     return texts.map((_text, index) => ({
       embedding: embeddings[index],
-      email_message_id: messages[index].email_messages.id,
+      as_text: texts[index],
+      email_thread_id: threadsWithMessages[index].thread.id,
     }))
   }
 
@@ -91,7 +118,7 @@ export class Indexer {
 
       await this.updateProgress()
 
-      if (this.messageCount === this.embeddingsCount) {
+      if (this.threadCount === this.embeddingsCount) {
         break
       }
 
@@ -100,11 +127,11 @@ export class Indexer {
   }
 
   async updateProgress() {
-    const messagesCount = await this.db.select({ count: count() }).from(emailMessagesTable).get()
-    if (!messagesCount) {
-      throw new Error('Failed to get messages count')
+    const threadsCount = await this.db.select({ count: count() }).from(emailThreadsTable).get()
+    if (!threadsCount) {
+      throw new Error('Failed to get threads count')
     }
-    this.messageCount = messagesCount.count
+    this.threadCount = threadsCount.count
 
     const embeddingsCount = await this.db.select({ count: count() }).from(embeddingsTable).get()
     if (!embeddingsCount) {
@@ -120,7 +147,7 @@ export class Indexer {
   getStatus() {
     return {
       isIndexing: this.isIndexing,
-      messageCount: this.messageCount,
+      threadCount: this.threadCount,
       embeddingsCount: this.embeddingsCount,
       shouldCancelAfterNextBatch: this.shouldCancelAfterNextBatch,
       batchSize: this.batchSize,

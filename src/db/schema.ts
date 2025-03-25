@@ -85,4 +85,5 @@ export const embeddingsTable = sqliteTable('embeddings', {
     .unique()
     .references(() => emailThreadsTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   embedding: float32Array('embedding', { dimensions: 384 }),
+  as_text: text('as_text'),
 })

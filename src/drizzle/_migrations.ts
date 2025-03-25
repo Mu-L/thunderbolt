@@ -1,6 +1,6 @@
 /**
  * This file is auto-generated. Do not edit directly.
- * Generated on: 2025-03-21T20:23:24.070Z
+ * Generated on: 2025-03-25T01:27:03.185Z
  */
 
 export interface Migration {
@@ -24,5 +24,15 @@ export const migrations: Migration[] = [
     "hash": "0002_smiling_marauders",
     "name": "0002_smiling_marauders.sql",
     "sql": "PRAGMA foreign_keys=OFF;--> statement-breakpoint\nCREATE TABLE `__new_email_messages` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`message_id` text NOT NULL,\n\t`html_body` text NOT NULL,\n\t`text_body` text NOT NULL,\n\t`parts` text NOT NULL,\n\t`subject` text,\n\t`date` text NOT NULL,\n\t`from` text NOT NULL,\n\t`in_reply_to` text,\n\t`email_thread_id` text,\n\tFOREIGN KEY (`email_thread_id`) REFERENCES `email_threads`(`id`) ON UPDATE cascade ON DELETE set null\n);\n--> statement-breakpoint\nINSERT INTO `__new_email_messages`(\"id\", \"message_id\", \"html_body\", \"text_body\", \"parts\", \"subject\", \"date\", \"from\", \"in_reply_to\", \"email_thread_id\") SELECT \"id\", \"message_id\", \"html_body\", \"text_body\", \"parts\", \"subject\", \"date\", \"from\", \"in_reply_to\", \"email_thread_id\" FROM `email_messages`;--> statement-breakpoint\nDROP TABLE `email_messages`;--> statement-breakpoint\nALTER TABLE `__new_email_messages` RENAME TO `email_messages`;--> statement-breakpoint\nPRAGMA foreign_keys=ON;--> statement-breakpoint\nCREATE UNIQUE INDEX `email_messages_id_unique` ON `email_messages` (`id`);--> statement-breakpoint\nCREATE UNIQUE INDEX `email_messages_message_id_unique` ON `email_messages` (`message_id`);"
+  },
+  {
+    "hash": "0003_mute_tigra",
+    "name": "0003_mute_tigra.sql",
+    "sql": "ALTER TABLE `email_threads` ADD `as_text` text NOT NULL;"
+  },
+  {
+    "hash": "0004_spotty_kat_farrell",
+    "name": "0004_spotty_kat_farrell.sql",
+    "sql": "ALTER TABLE `embeddings` ADD `as_text` text;--> statement-breakpoint\nALTER TABLE `email_threads` DROP COLUMN `as_text`;"
   }
 ];
