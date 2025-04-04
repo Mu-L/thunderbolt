@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useDrizzle } from '@/db/provider'
 import { accountsTable } from '@/db/tables'
+import ImapClient from '@/imap/imap'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { eq } from 'drizzle-orm'
@@ -116,6 +117,15 @@ export default function AccountsSettingsPage() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setShowSaved(false)
     await updateAccountMutation.mutateAsync(values)
+
+    // @todo eventually, either ImapClient should be a singleton that is managed by a context provider OR we should just make all imap operations be purely functional.
+    const imap = new ImapClient()
+    await imap.initialize({
+      hostname: values.hostname,
+      port: values.port,
+      username: values.username,
+      password: values.password,
+    })
   }
 
   return (

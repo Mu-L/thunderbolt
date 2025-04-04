@@ -10,7 +10,6 @@ use anyhow::Result;
 use assist_imap_client::{messages_to_json_values, ImapClient, ImapCredentials};
 use assist_imap_sync::ImapSync;
 use chrono::{DateTime, Utc};
-use mozilla_assist_lib::settings::get_settings;
 use serde_json;
 use std::env;
 use tauri::{command, ActivationPolicy, Manager};
@@ -34,37 +33,23 @@ async fn toggle_dock_icon(app_handle: tauri::AppHandle, show: bool) -> Result<()
 }
 
 #[command]
-async fn init_imap(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn init_imap(
+    app_handle: tauri::AppHandle,
+    hostname: String,
+    port: u16,
+    username: String,
+    password: String,
+) -> Result<(), String> {
     // Access state directly
     let state = app_handle.state::<Mutex<AppState>>();
     let mut state_guard = state.lock().await;
 
-    // Get database connection
-    let pool = state_guard
-        .db_pool
-        .as_ref()
-        .ok_or_else(|| "Database not initialized".to_string())?;
-
-    // Get a connection from the pool
-    let conn = pool.get_connection().await;
-    let mut conn_guard = conn.lock().await;
-
-    // Get settings
-    let settings = get_settings(&mut *conn_guard)
-        .await
-        .map_err(|e| format!("Failed to get settings: {}", e))?;
-
-    // Check if account settings exist
-    let account_settings = settings
-        .account
-        .ok_or_else(|| "Account settings not found".to_string())?;
-
-    // Create ImapCredentials from account settings
+    // Create ImapCredentials from provided parameters
     let credentials = ImapCredentials {
-        hostname: account_settings.hostname.clone(),
-        port: account_settings.port,
-        username: account_settings.username.clone(),
-        password: account_settings.password.clone(),
+        hostname,
+        port,
+        username,
+        password,
     };
 
     // Create IMAP client
@@ -82,7 +67,13 @@ async fn init_imap(app_handle: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[command]
-async fn init_imap_sync(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn init_imap_sync(
+    app_handle: tauri::AppHandle,
+    hostname: String,
+    port: u16,
+    username: String,
+    password: String,
+) -> Result<(), String> {
     // Access state directly
     let state = app_handle.state::<Mutex<AppState>>();
     let mut state_guard = state.lock().await;
@@ -97,26 +88,12 @@ async fn init_imap_sync(app_handle: tauri::AppHandle) -> Result<(), String> {
         return Err("Database not initialized. Call init_libsql first.".to_string());
     }
 
-    // Get settings to create a new IMAP client for the sync service
-    let pool = state_guard.db_pool.as_ref().unwrap();
-    let conn = pool.get_connection().await;
-    let mut conn_guard = conn.lock().await;
-
-    let settings = get_settings(&mut *conn_guard)
-        .await
-        .map_err(|e| format!("Failed to get settings: {}", e))?;
-
-    // Check if account settings exist
-    let account_settings = settings
-        .account
-        .ok_or_else(|| "Account settings not found".to_string())?;
-
-    // Create a new IMAP client for the sync service
+    // Create a new IMAP client for the sync service using provided credentials
     let sync_credentials = ImapCredentials {
-        hostname: account_settings.hostname,
-        port: account_settings.port,
-        username: account_settings.username,
-        password: account_settings.password,
+        hostname,
+        port,
+        username,
+        password,
     };
     let sync_imap_client = ImapClient::new(sync_credentials);
 
@@ -124,6 +101,9 @@ async fn init_imap_sync(app_handle: tauri::AppHandle) -> Result<(), String> {
     sync_imap_client
         .connect()
         .map_err(|e| format!("Failed to connect sync client: {}", e))?;
+
+    // Get database pool
+    let pool = state_guard.db_pool.as_ref().unwrap();
 
     // Create a dedicated connection for the sync service
     let db_conn = pool

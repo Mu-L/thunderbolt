@@ -1,32 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
-import { accountsTable, emailMessagesTable, emailThreadsTable, modelsTable, settingsTable } from './db/tables'
+import { accountsTable, emailMessagesTable, emailThreadsTable, modelsTable } from './db/tables'
 import { DrizzleContextType, EmailThreadWithMessagesAndAddresses } from './types'
-
-export const setSettings = async (db: DrizzleContextType['db'], key: string, value: any) => {
-  await db
-    .insert(settingsTable)
-    .values({
-      key,
-      value: JSON.stringify(value),
-      updatedAt: Math.floor(Date.now() / 1000),
-    })
-    .onConflictDoUpdate({
-      target: settingsTable.key,
-      set: {
-        value: JSON.stringify(value),
-        updatedAt: Math.floor(Date.now() / 1000),
-      },
-    })
-}
-
-export const getSettings = async <T>(db: DrizzleContextType['db'], key: string): Promise<T | null> => {
-  const result = await db.select().from(settingsTable).where(eq(settingsTable.key, key)).limit(1)
-
-  if (result.length === 0) return null
-
-  return JSON.parse(result[0].value as string) as T
-}
 
 export const seedAccounts = async (db: DrizzleContextType['db']) => {
   const accounts = await db.select().from(accountsTable)

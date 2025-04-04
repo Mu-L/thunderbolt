@@ -1,3 +1,4 @@
+import { ImapCredentials } from '@/imap/imap'
 import { invoke } from '@tauri-apps/api/core'
 
 /**
@@ -17,8 +18,8 @@ export default class ImapSyncClient {
    * await ImapSyncClient.initialize();
    * ```
    */
-  async initialize(): Promise<void> {
-    await invoke<void>('init_imap_sync')
+  async initialize({ hostname, port, username, password }: ImapCredentials): Promise<void> {
+    await invoke<void>('init_imap_sync', { hostname, port, username, password })
   }
 
   /**

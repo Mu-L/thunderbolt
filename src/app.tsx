@@ -5,15 +5,16 @@ import ChatDetailPage from '@/chats/detail'
 import ChatLayout from '@/chats/layout2'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import AccountsSettingsPage from '@/settings/accounts'
-import Settings from '@/settings/index'
+import { default as Settings } from '@/settings/index'
 import ModelDetailPage from '@/settings/models/detail'
 import ModelsLayout from '@/settings/models/layout'
 import NewModelPage from '@/settings/models/new'
 import { useEffect, useState } from 'react'
-import { getSettings, seedAccounts, seedModels } from './dal'
+import { seedAccounts, seedModels } from './dal'
 import { initializeDrizzleDatabase } from './db/database'
 import { migrate } from './db/migrate'
 import { DrizzleProvider } from './db/provider'
+import { accountsTable } from './db/tables'
 import DevToolsPage from './devtools'
 import ImapClient from './imap/imap'
 import { ImapProvider } from './imap/provider'
@@ -24,7 +25,7 @@ import Loading from './loading'
 import SettingsLayout from './settings/layout'
 import { SideviewProvider } from './sideview/provider'
 import { ImapSyncClient, ImapSyncProvider } from './sync'
-import { InitData, Settings as SettingsType, SideviewType } from './types'
+import { InitData, SideviewType } from './types'
 import UiKitPage from './ui-kit'
 import WelcomePage from './welcome'
 
@@ -37,26 +38,29 @@ const init = async (): Promise<InitData> => {
 
   await migrate({ sqlite })
 
-  const settings = (await getSettings<SettingsType>(db, 'main')) || {}
-
   await seedAccounts(db)
   await seedModels(db)
 
   const imap = new ImapClient()
   const imapSync = new ImapSyncClient()
 
-  if (settings.account) {
+  const account = await db.select().from(accountsTable).limit(1).get()
+
+  if (account?.imapHostname && account?.imapPort && account?.imapUsername && account?.imapPassword) {
     await imap.initialize({
-      hostname: settings.account.hostname,
-      port: settings.account.port,
-      username: settings.account.username,
-      password: settings.account.password,
+      hostname: account.imapHostname,
+      port: account.imapPort,
+      username: account.imapUsername,
+      password: account.imapPassword,
     })
 
     // Initialize the IMAP sync client after the IMAP client
-    await imapSync.initialize()
-  } else {
-    console.warn('No IMAP account settings found')
+    await imapSync.initialize({
+      hostname: account.imapHostname,
+      port: account.imapPort,
+      username: account.imapUsername,
+      password: account.imapPassword,
+    })
   }
 
   const tray = await TrayManager.init()
@@ -78,7 +82,6 @@ const init = async (): Promise<InitData> => {
   return {
     db,
     sqlite,
-    settings,
     imap,
     imapSync,
     sideviewType,

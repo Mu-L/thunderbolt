@@ -34,6 +34,7 @@ export const initializeDrizzleDatabase = async (path: string) => {
         // Otherwise, use the execute method
         rows = await sqlite.execute(sql, params).catch((e) => {
           console.error('SQL Error:', e)
+          console.error('SQL Query:', sql)
           return []
         })
         return { rows: [] }

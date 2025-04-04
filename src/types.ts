@@ -20,12 +20,10 @@ import {
 import ImapClient from './imap/imap'
 import Database from './lib/libsql'
 import { ImapSyncClient } from './sync'
-import { Settings as SettingsType } from './types'
 
 export type InitData = {
   db: SqliteRemoteDatabase<typeof schema>
   sqlite: Database
-  settings: SettingsType
   imap: ImapClient
   imapSync: ImapSyncClient
   tray: TrayIcon | undefined

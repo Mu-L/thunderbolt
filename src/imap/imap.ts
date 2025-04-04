@@ -40,7 +40,7 @@ export default class ImapClient {
    * ```
    */
   async initialize(credentials: ImapCredentials): Promise<void> {
-    await invoke<void>('init_imap')
+    await invoke<void>('init_imap', { ...credentials })
   }
 
   /**
