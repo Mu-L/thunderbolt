@@ -21,8 +21,7 @@ brew install cmake # Mac only
 ## Setup
 
 ```sh
-git clone --recursive https://github.com/thoughtfulllc/assist # Be sure to use --recursive in order to include the external Rust crates in src-tauri/workspace
-# If you forgot to use --recursive, you can `cd src-tauri/workspace/<submodule> && git submodule update --init --recursive`
+git clone
 bun install
 ```
 
@@ -50,24 +49,6 @@ cargo build --bin mistral --release
 # embed - must be built for release to work!
 cargo build --bin embed --release
 ./target/release/embed
-```
-
-## Reset Database Migrations
-
-This will recreate the database deleting all data by rolling back all migrations and reapplying them.
-
-```sh
-sea-orm-cli migrate refresh
-```
-
-## Generate Entities (Database Models)
-
-This will generate the SeaORM entities (e.g., database models / schemas) from the current schema of the SQLite database.
-
-```sh
-cd src-tauri
-
-sea-orm-cli generate entity -o entity/src
 ```
 
 ## Analyze Vite Modules
