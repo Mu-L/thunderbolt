@@ -7,8 +7,8 @@ mod libsql;
 mod state;
 
 use anyhow::Result;
-use assist_imap_client::{messages_to_json_values, ImapClient, ImapCredentials};
-use assist_imap_sync::ImapSync;
+use thunderbolt_imap_client::{messages_to_json_values, ImapClient, ImapCredentials};
+use thunderbolt_imap_sync::ImapSync;
 use chrono::{DateTime, Utc};
 use serde_json;
 use std::env;
@@ -177,7 +177,7 @@ async fn fetch_messages(
     mailbox: String,
     start_index: Option<usize>,
     count: Option<usize>,
-) -> Result<assist_imap_client::FetchMessagesResponse, String> {
+) -> Result<thunderbolt_imap_client::FetchMessagesResponse, String> {
     // Access state directly
     let state = app_handle.state::<Mutex<AppState>>();
     let state_guard = state.lock().await;

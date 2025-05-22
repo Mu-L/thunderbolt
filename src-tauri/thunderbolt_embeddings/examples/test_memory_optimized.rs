@@ -1,5 +1,5 @@
 use anyhow::Result;
-use assist_embeddings::embedding::{generate_embeddings, Embedder};
+use thunderbolt_embeddings::embedding::{generate_embeddings, Embedder};
 use std::time::Instant;
 
 fn main() -> Result<()> {

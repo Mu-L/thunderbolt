@@ -1,10 +1,10 @@
 [package]
-name = "assist_imap_sync"
+name = "thunderbolt_imap_sync"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-assist_imap_client = { path = "../assist_imap_client" }
+thunderbolt_imap_client = { path = "../thunderbolt_imap_client" }
 anyhow = "1.0.97"
 chrono = "0.4"
 libsql = { git = "https://github.com/libsql/libsql.git", rev = "d980ce13b9c4b3f05b03dd1b9ca2fb2765c0cb68", features = [

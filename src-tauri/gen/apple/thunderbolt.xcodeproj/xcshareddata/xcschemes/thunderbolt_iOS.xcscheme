@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "2009D75A85016303150BA020"
-               BuildableName = "mozilla-assist.app"
-               BlueprintName = "mozilla-assist_iOS"
-               ReferencedContainer = "container:mozilla-assist.xcodeproj">
+               BuildableName = "thunderbolt.app"
+               BlueprintName = "thunderbolt_iOS"
+               ReferencedContainer = "container:thunderbolt.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -31,9 +31,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "2009D75A85016303150BA020"
-            BuildableName = "mozilla-assist.app"
-            BlueprintName = "mozilla-assist_iOS"
-            ReferencedContainer = "container:mozilla-assist.xcodeproj">
+            BuildableName = "thunderbolt.app"
+            BlueprintName = "thunderbolt_iOS"
+            ReferencedContainer = "container:thunderbolt.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <EnvironmentVariables>
@@ -66,9 +66,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "2009D75A85016303150BA020"
-            BuildableName = "mozilla-assist.app"
-            BlueprintName = "mozilla-assist_iOS"
-            ReferencedContainer = "container:mozilla-assist.xcodeproj">
+            BuildableName = "thunderbolt.app"
+            BlueprintName = "thunderbolt_iOS"
+            ReferencedContainer = "container:thunderbolt.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
@@ -95,9 +95,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "2009D75A85016303150BA020"
-            BuildableName = "mozilla-assist.app"
-            BlueprintName = "mozilla-assist_iOS"
-            ReferencedContainer = "container:mozilla-assist.xcodeproj">
+            BuildableName = "thunderbolt.app"
+            BlueprintName = "thunderbolt_iOS"
+            ReferencedContainer = "container:thunderbolt.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>

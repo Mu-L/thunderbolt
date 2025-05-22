@@ -1,8 +1,8 @@
 {
-  "name": "mozilla-assist",
+  "name": "thunderbolt",
   "private": true,
   "version": "0.1.0",
-  "description": "Mozilla Assist",
+  "description": "Thunderbolt",
   "type": "module",
   "scripts": {
     "start": "vite",

@@ -1,6 +1,6 @@
-# Assist IMAP Client
+# Thunderbolt IMAP Client
 
-A Rust library for interacting with IMAP servers, designed for the Mozilla Assist application.
+A Rust library for interacting with IMAP servers, designed for Thunderbolt.
 
 ## Features
 
@@ -13,7 +13,7 @@ A Rust library for interacting with IMAP servers, designed for the Mozilla Assis
 ## Usage
 
 ```rust
-use assist_imap_client::{ImapClient, ImapCredentials, messages_to_json_values};
+use thunderbolt_imap_client::{ImapClient, ImapCredentials, messages_to_json_values};
 
 // Create credentials
 let credentials = ImapCredentials {
@@ -53,4 +53,4 @@ See the `examples/test_imap.rs` file for a complete example of using the library
 - mail-parser
 - serde/serde_json
 - anyhow
-- regex 
+- regex

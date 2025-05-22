@@ -1,5 +1,5 @@
 [package]
-name = "assist_embeddings"
+name = "thunderbolt_embeddings"
 version = "0.1.0"
 edition = "2021"
 

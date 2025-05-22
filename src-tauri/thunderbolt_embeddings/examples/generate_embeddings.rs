@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use assist_embeddings::embedding::Embedder;
-use assist_embeddings::{generate_all_with_embedder, generate_batch_with_embedder};
+use thunderbolt_embeddings::embedding::Embedder;
+use thunderbolt_embeddings::{generate_all_with_embedder, generate_batch_with_embedder};
 use libsql::{Builder, Connection};
 use std::env;
 use std::path::Path;
@@ -11,14 +11,14 @@ async fn test_embedding_generation() -> Result<()> {
 
     // Initialize the embedder
     println!("Initializing embedder...");
-    let embedder = assist_embeddings::embedding::Embedder::new()?;
+    let embedder = thunderbolt_embeddings::embedding::Embedder::new()?;
     println!("Embedder initialized successfully.");
 
     // Generate an embedding for a sample text
     let sample_text = "This is a test email to verify embedding generation works correctly.";
     println!("Generating embedding for: '{}'", sample_text);
 
-    let embedding = assist_embeddings::embedding::generate_embedding(&embedder, sample_text)?;
+    let embedding = thunderbolt_embeddings::embedding::generate_embedding(&embedder, sample_text)?;
 
     println!(
         "Successfully generated embedding with {} dimensions",
@@ -42,7 +42,7 @@ async fn setup_database() -> Result<Connection> {
         Path::new("src-tauri/data/local.db"),
         // From src-tauri directory
         Path::new("data/local.db"),
-        // From assist_embeddings directory
+        // From thunderbolt_embeddings directory
         Path::new("../data/local.db"),
     ];
 

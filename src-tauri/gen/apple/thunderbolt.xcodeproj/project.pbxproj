@@ -21,7 +21,7 @@
 		E2C44005F6D95611D118B217 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 26F6E3E472723C773C3E9082 /* MetalKit.framework */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXFileReference section */
+/* Begin PBXFileReference section */		
 		1270AE28B59B1DCE8160D1A6 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		26F6E3E472723C773C3E9082 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		42F7DD36D9538479EDAF05C0 /* mozilla-assist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "mozilla-assist.app"; sourceTree = BUILT_PRODUCTS_DIR; };

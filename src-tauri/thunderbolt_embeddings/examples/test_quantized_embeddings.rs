@@ -1,4 +1,4 @@
-use assist_embeddings::embedding::{generate_embedding, Embedder};
+use thunderbolt_embeddings::embedding::{generate_embedding, Embedder};
 use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         "The quick brown fox jumps over the lazy dog.",
         "Quantization helps reduce model size and improve inference speed.",
         "The embedding model can be used for semantic search and clustering.",
-        "Mozilla Assist processes emails for better productivity.",
+        "Thunderbolt processes emails for better productivity.",
         "Testing the performance of quantized embeddings.",
     ];
 

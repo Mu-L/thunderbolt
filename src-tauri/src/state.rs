@@ -1,7 +1,7 @@
 use crate::db_pool::DbPool;
-use assist_embeddings::embedding::Embedder;
-use assist_imap_client::ImapClient;
-use assist_imap_sync::ImapSync;
+use thunderbolt_embeddings::embedding::Embedder;
+use thunderbolt_imap_client::ImapClient;
+use thunderbolt_imap_sync::ImapSync;
 use std::sync::Arc;
 
 #[derive(Default)]

@@ -39,7 +39,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 
 [[package]]
-name = "assist_imap_client"
+name = "thunderbolt_imap_client"
 version = "0.1.0"
 dependencies = [
  "anyhow",

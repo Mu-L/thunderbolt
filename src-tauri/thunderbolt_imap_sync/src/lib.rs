@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use assist_imap_client::ImapClient;
+use thunderbolt_imap_client::ImapClient;
 use chrono::{DateTime, TimeZone, Utc};
 use libsql::Connection;
 use mail_parser::Message;
@@ -111,7 +111,7 @@ impl ImapSync {
         // Convert the messages to JSON
         let json_messages: Vec<serde_json::Value> = messages
             .into_iter()
-            .map(|msg| assist_imap_client::message_to_json_value(&msg))
+            .map(|msg| thunderbolt_imap_client::message_to_json_value(&msg))
             .filter_map(Result::ok)
             .collect();
 

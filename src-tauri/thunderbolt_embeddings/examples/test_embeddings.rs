@@ -1,5 +1,5 @@
 use anyhow::Result;
-use assist_embeddings::embedding::{generate_embedding, Embedder};
+use thunderbolt_embeddings::embedding::{generate_embedding, Embedder};
 
 fn main() -> Result<()> {
     println!("Testing embedding generation with a sample text...");

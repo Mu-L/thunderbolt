@@ -1,5 +1,5 @@
 use anyhow::Result;
-use assist_embeddings;
+use thunderbolt_embeddings;
 use std::sync::Arc;
 use tauri::{command, State};
 use tokio::sync::Mutex;
@@ -9,7 +9,7 @@ use crate::state::AppState;
 #[command]
 pub async fn init_embedder(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
     // Initialize the embedder
-    let embedder = assist_embeddings::embedding::Embedder::new()
+    let embedder = thunderbolt_embeddings::embedding::Embedder::new()
         .map_err(|e| format!("Failed to initialize embedder: {}", e))?;
 
     // Store the embedder in state wrapped in an Arc for thread safety
@@ -41,7 +41,7 @@ pub async fn generate_embeddings(
     // Spawn a blocking task with the Arc-wrapped embedder
     let embeddings = tokio::task::spawn_blocking(move || {
         // Use the Arc-wrapped embedder with the arc-specific function
-        assist_embeddings::embedding::generate_embeddings_arc(&embedder_arc, &texts_clone)
+        thunderbolt_embeddings::embedding::generate_embeddings_arc(&embedder_arc, &texts_clone)
             .map_err(|e| format!("Failed to generate embeddings: {}", e))
     })
     .await

@@ -1,9 +1,9 @@
 [package]
-name = "assist_imap_client"
+name = "thunderbolt_imap_client"
 version = "0.1.0"
 edition = "2021"
-description = "IMAP client for Mozilla Assist"
-authors = ["Mozilla Assist Team"]
+description = "IMAP client for Thunderbolt"
+authors = ["Thunderbolt Team"]
 
 [dependencies]
 imap = "3.0.0-alpha.15"

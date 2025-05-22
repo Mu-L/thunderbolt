@@ -1,5 +1,5 @@
 use anyhow::Result;
-use assist_embeddings::embedding::{generate_embedding, Embedder};
+use thunderbolt_embeddings::embedding::{generate_embedding, Embedder};
 
 // This example demonstrates how a client would use the embedding functionality
 // It simulates what would normally be done through a Tauri command

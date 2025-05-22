@@ -1,6 +1,6 @@
-name: mozilla-assist
+name: thunderbolt
 options:
-  bundleIdPrefix: org.mozilla.assist
+  bundleIdPrefix: org.mozilla.thunderbolt
   deploymentTarget:
     iOS: 13.0
 fileGroups: [../../src]
@@ -10,8 +10,8 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: Assist
-      PRODUCT_BUNDLE_IDENTIFIER: org.mozilla.assist
+      PRODUCT_NAME: Thunderbolt
+      PRODUCT_BUNDLE_IDENTIFIER: org.mozilla.thunderbolt
 targetTemplates:
   app:
     type: application
@@ -24,20 +24,20 @@ targetTemplates:
     settings:
       groups: [app]
 targets:
-  mozilla-assist_iOS:
+  thunderbolt_iOS:
     type: application
     platform: iOS
     sources:
       - path: Sources
       - path: Assets.xcassets
       - path: Externals
-      - path: mozilla-assist_iOS
+      - path: thunderbolt_iOS
       - path: assets
         buildPhase: resources
         type: folder
       - path: LaunchScreen.storyboard
     info:
-      path: mozilla-assist_iOS/Info.plist
+      path: thunderbolt_iOS/Info.plist
       properties:
         LSRequiresIPhoneOS: true
         UILaunchStoryboardName: LaunchScreen
@@ -54,7 +54,7 @@ targets:
         CFBundleShortVersionString: 0.1.0
         CFBundleVersion: 0.1.0
     entitlements:
-      path: mozilla-assist_iOS/mozilla-assist_iOS.entitlements
+      path: thunderbolt_iOS/thunderbolt_iOS.entitlements
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
@@ -63,7 +63,7 @@ targets:
       base:
         ENABLE_BITCODE: false
         ARCHS: [arm64, arm64-sim]
-        VALID_ARCHS: arm64  arm64-sim 
+        VALID_ARCHS: arm64  arm64-sim
         LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)
         LIBRARY_SEARCH_PATHS[arch=arm64-sim]: $(inherited) $(PROJECT_DIR)/Externals/arm64-sim/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)

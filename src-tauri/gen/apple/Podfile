@@ -1,13 +1,13 @@
 # Uncomment the next line to define a global platform for your project
 
-target 'mozilla-assist_iOS' do
+target 'thunderbolt_iOS' do
 platform :ios, '13.0'
-  # Pods for mozilla-assist_iOS
+  # Pods for thunderbolt_iOS
 end
 
-target 'mozilla-assist_macOS' do
+target 'thunderbolt_macOS' do
 platform :osx, '11.0'
-  # Pods for mozilla-assist_macOS
+  # Pods for thunderbolt_macOS
 end
 
 # Delete the deployment target for iOS and macOS, causing it to be inherited from the Podfile

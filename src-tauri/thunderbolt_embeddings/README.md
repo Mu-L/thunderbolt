@@ -1,6 +1,6 @@
-# Assist Embeddings
+# Thunderbolt Embeddings
 
-This module provides optimized text embedding functionality for the Mozilla Assistant using the Jina BERT model.
+This module provides optimized text embedding functionality for Thunderbolt using the Jina BERT model.
 
 ## Key Features
 
@@ -73,12 +73,13 @@ The embeddings module is integrated with the Tauri application through commands:
 The main example that processes email messages from the database:
 
 ```bash
-# Make sure you're in the mozilla-assist root directory
-cargo run --manifest-path=src-tauri/assist_embeddings/Cargo.toml --example generate_embeddings
+# Make sure you're in the Thunderbolt root directory
+cargo run --manifest-path=src-tauri/thunderbolt_embeddings/Cargo.toml --example generate_embeddings
 ```
 
 This example will:
-1. Test the embedding generation functionality with a sample text 
+
+1. Test the embedding generation functionality with a sample text
 2. Connect to the local database at `src-tauri/data/local.db`
 3. Process a single batch of messages (up to 10)
 4. Process all remaining messages without embeddings
@@ -88,7 +89,7 @@ This example will:
 A simple example that only tests the embedding generation:
 
 ```bash
-cargo run --manifest-path=src-tauri/assist_embeddings/Cargo.toml --example test_embeddings
+cargo run --manifest-path=src-tauri/thunderbolt_embeddings/Cargo.toml --example test_embeddings
 ```
 
 This example only tests the embedding functionality without requiring a database connection.
@@ -101,4 +102,4 @@ The embedding model returns tensors with shape `[1, 768]`, but the `to_vec1()` m
 
 - `lib.rs`: Main library code with database operations
 - `embedding.rs`: Embedding generation using E5-small model
-- `examples/`: Example applications demonstrating the functionality 
+- `examples/`: Example applications demonstrating the functionality

@@ -113,8 +113,8 @@ export class TrayManager {
     })
 
     this.tray = await TrayIcon.new({
-      title: 'Assist',
-      tooltip: 'Assist',
+      title: 'Thunderbolt',
+      tooltip: 'Thunderbolt',
       menu,
     })
 
