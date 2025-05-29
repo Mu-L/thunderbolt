@@ -35,7 +35,7 @@ const createPrompt = ({ preferredName, location }: PromptParams) => {
     `You can use the available tools to answer the user's question.`,
     `If you are unable to answer the user's question based on the available information, just say so. Do not make up an answer.`,
     `Respond to the user's question in a helpful, concise and friendly manner. Always reply to the user in plain text or markdown. Do not mention JSON or anything about tools.`,
-    `If you search DuckDuckGo, always use the fetch_content tool to actually fetch and parse the results that look relevant to the user's question.`,
+    `If you search the web for something, make sure you think about what the user is asking. You likely need to use the fetch_content tool to actually fetch and parse the results that look relevant to the user's question.`,
   ]
 
   return prompt.filter(Boolean).join('\n')

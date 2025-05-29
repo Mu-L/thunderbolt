@@ -7,6 +7,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { AgentToolResponse } from './agent-tool-response'
+import { ChatLoadingIndicator } from './chat-loading-indicator'
 import { Reasoning } from './reasoning'
 import { StreamingMarkdown } from './streaming-markdown'
 
@@ -123,6 +124,10 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
               }
               return null
             })}
+
+            {/* Show loading indicator when waiting for server response */}
+            {chatHelpers.status === 'submitted' && <ChatLoadingIndicator message="Thinking..." />}
+
             <div ref={messagesEndRef} />
           </motion.div>
         )}
