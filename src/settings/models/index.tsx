@@ -19,7 +19,7 @@ import { generateText } from 'ai'
 import { eq } from 'drizzle-orm'
 import ky from 'ky'
 import { Check, ChevronsUpDown, Loader2, Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { v7 as uuidv7 } from 'uuid'
 import { z } from 'zod'
@@ -156,19 +156,6 @@ export default function ModelsPage() {
       toolUsage: true,
     },
   })
-
-  // Set default URL when provider changes to openai_compatible
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'provider' && value.provider === 'openai_compatible') {
-        // Set default Ollama URL if URL is empty
-        if (!form.getValues('url')) {
-          form.setValue('url', 'http://localhost:11434/v1')
-        }
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
 
   // Load Thunderbolt models when dialog opens
   useEffect(() => {
@@ -395,38 +382,51 @@ export default function ModelsPage() {
     setModelSelectOpen(false)
   }
 
-  // Watch for provider changes
+  // Watch for provider changes with proper cleanup
+  const watchedProvider = form.watch('provider')
+  const previousProviderRef = useRef(watchedProvider)
+
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'provider') {
-        // Reset model selection when provider changes
-        setSelectedModelId('')
-        form.setValue('model', '')
-        form.setValue('customModel', '')
-        form.setValue('name', '')
+    const currentProvider = watchedProvider
+    const previousProvider = previousProviderRef.current
 
-        // Fetch models if we have the necessary credentials
-        const provider = value.provider
-        const apiKey = value.apiKey
-        const url = value.url
+    // Only act when provider actually changes (not on initial render)
+    if (currentProvider !== previousProvider) {
+      // Reset model selection when provider changes
+      setSelectedModelId('')
+      setAvailableModels([])
 
-        if (provider === 'thunderbolt' || (provider && apiKey) || (provider === 'openai_compatible' && url)) {
-          fetchAvailableModels(provider, apiKey, url)
-        }
-      } else if ((name === 'apiKey' || name === 'url') && value.provider) {
-        // Refetch models when API key or URL changes
-        const provider = value.provider
-        const apiKey = value.apiKey
-        const url = value.url
+      // Reset form fields (excluding provider) using setValue with proper options
+      form.setValue('name', '', { shouldValidate: false, shouldDirty: false })
+      form.setValue('model', '', { shouldValidate: false, shouldDirty: false })
+      form.setValue('customModel', '', { shouldValidate: false, shouldDirty: false })
+      form.setValue('url', currentProvider === 'openai_compatible' ? 'http://localhost:11434/v1' : '', { shouldValidate: false, shouldDirty: false })
+      form.setValue('apiKey', '', { shouldValidate: false, shouldDirty: false })
+      form.setValue('toolUsage', true, { shouldValidate: false, shouldDirty: false })
 
-        if (provider === 'thunderbolt' || (provider && apiKey) || (provider === 'openai_compatible' && url)) {
-          fetchAvailableModels(provider, apiKey, url)
-        }
+      // Fetch models if we have the necessary credentials
+      if (currentProvider === 'thunderbolt') {
+        fetchAvailableModels(currentProvider)
       }
-    })
 
-    return () => subscription.unsubscribe()
-  }, [form])
+      // Update the ref for next comparison
+      previousProviderRef.current = currentProvider
+    }
+  }, [watchedProvider, form])
+
+  // Watch for API key and URL changes to refetch models
+  const watchedApiKey = form.watch('apiKey')
+  const watchedUrl = form.watch('url')
+
+  useEffect(() => {
+    const provider = form.getValues('provider')
+    const apiKey = watchedApiKey
+    const url = watchedUrl
+
+    if (provider && (provider === 'thunderbolt' || (provider && apiKey) || (provider === 'openai_compatible' && url))) {
+      fetchAvailableModels(provider, apiKey, url)
+    }
+  }, [watchedApiKey, watchedUrl, form])
 
   const getProviderDisplay = (provider: string) => {
     switch (provider) {
