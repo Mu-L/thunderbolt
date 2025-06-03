@@ -172,7 +172,6 @@ export default function ModelsPage() {
     }
   }, [isAddDialogOpen])
 
-
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     // Use customModel if it's a custom selection, otherwise use model
     const modelId = selectedModelId === 'custom' && values.customModel ? values.customModel : values.model
@@ -313,11 +312,11 @@ export default function ModelsPage() {
           }
           break
         case 'thunderbolt':
-          // Thunderbolt models are hardcoded
           setAvailableModels([
-            { id: 'accounts/fireworks/models/llama-v3p1-70b-instruct', name: 'Llama 3.1 70B' },
-            { id: 'accounts/fireworks/models/llama-v3p1-405b-instruct', name: 'Llama 3.1 405B' },
-            { id: 'accounts/fireworks/models/qwen3-235b-a22b', name: 'Qwen3 235B' },
+            { id: 'llama-v3p1-70b-instruct', name: 'Llama 3.1 70B' },
+            { id: 'llama-v3p1-405b-instruct', name: 'Llama 3.1 405B' },
+            { id: 'qwen3-235b-a22b', name: 'Qwen 3 235B' },
+            { id: 'qwen2p5-72b-instruct', name: 'Qwen 2.5 72B' },
           ])
           setIsLoadingModels(false)
           return
@@ -342,7 +341,7 @@ export default function ModelsPage() {
         id: 'system',
         name: 'System',
         provider: 'thunderbolt',
-        model: 'accounts/fireworks/models/llama-v3p1-70b-instruct',
+        model: 'llama-v3p1-70b-instruct',
         url: null,
         apiKey: null,
         isSystem: 1,

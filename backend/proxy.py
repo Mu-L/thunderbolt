@@ -1,6 +1,7 @@
 import gzip
 import logging
 import zlib
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import parse_qs, urlencode
 
@@ -36,6 +37,7 @@ class ProxyConfig:
         strip_query_params: set[str] | None = None,
         require_auth: bool = True,
         supports_streaming: bool = False,
+        request_transformer: Callable[[bytes], bytes] | None = None,
     ):
         self.target_url = target_url.rstrip("/")
         self.api_key = api_key
@@ -46,6 +48,7 @@ class ProxyConfig:
         self.strip_query_params = strip_query_params or set()
         self.require_auth = require_auth
         self.supports_streaming = supports_streaming
+        self.request_transformer = request_transformer
 
 
 class ProxyService:
@@ -99,6 +102,10 @@ class ProxyService:
         # Remove host header as it will be set by httpx
         headers.pop("host", None)
 
+        # Remove content-length header as it will be recalculated by httpx
+        # This is crucial when request transformer modifies the body
+        headers.pop("content-length", None)
+
         return headers
 
     def _process_query_params(
@@ -130,9 +137,13 @@ class ProxyService:
         return query_params
 
     async def proxy_streaming_request(
-        self, request: Request, path: str, config: ProxyConfig
+        self, request: Request, path: str, config: ProxyConfig, body: bytes | None = None
     ) -> StreamingResponse:
         """Proxy a streaming request to the target URL"""
+
+        # If body wasn't passed in, read it from the request
+        if body is None:
+            body = await request.body()
 
         # Build target URL
         target_url = f"{config.target_url}/{path}"
@@ -148,8 +159,13 @@ class ProxyService:
         # Prepare headers
         headers = self.prepare_headers(request, config)
 
-        # Get request body
-        body = await request.body()
+        # Apply request transformer if configured
+        if config.request_transformer and body:
+            try:
+                body = config.request_transformer(body)
+            except Exception as e:
+                logger.error(f"Request transformation failed: {e}")
+                raise HTTPException(status_code=400, detail="Invalid request format") from e
 
         try:
             # Make the proxied request with streaming
@@ -186,6 +202,9 @@ class ProxyService:
     ) -> Response:
         """Proxy a request to the target URL"""
 
+        # Read the request body once at the beginning
+        body = await request.body()
+
         # Check if this is a streaming request
         is_streaming = False
         if config.supports_streaming:
@@ -194,15 +213,12 @@ class ProxyService:
             accept = request.headers.get("accept", "")
 
             # Parse request body to check for stream parameter
-            if request.method == "POST" and "application/json" in content_type:
+            if request.method == "POST" and "application/json" in content_type and body:
                 try:
                     import json
 
-                    body_bytes = await request.body()
-                    body_json = json.loads(body_bytes)
+                    body_json = json.loads(body)
                     is_streaming = body_json.get("stream", False)
-                    # Put the body back for later use
-                    request._body = body_bytes
                 except Exception:
                     pass
 
@@ -212,7 +228,7 @@ class ProxyService:
 
         # Use streaming proxy if needed
         if is_streaming:
-            return await self.proxy_streaming_request(request, path, config)
+            return await self.proxy_streaming_request(request, path, config, body)
 
         # Build target URL
         target_url = f"{config.target_url}/{path}"
@@ -228,8 +244,13 @@ class ProxyService:
         # Prepare headers
         headers = self.prepare_headers(request, config)
 
-        # Get request body
-        body = await request.body() if not hasattr(request, "_body") else request._body
+        # Apply request transformer if configured
+        if config.request_transformer and body:
+            try:
+                body = config.request_transformer(body)
+            except Exception as e:
+                logger.error(f"Request transformation failed: {e}")
+                raise HTTPException(status_code=400, detail="Invalid request format") from e
 
         try:
             # Make the proxied request
@@ -295,7 +316,7 @@ class ProxyService:
                     raise HTTPException(
                         status_code=500,
                         detail=f"Error processing response: {str(e)}",
-                    )
+                    ) from e
 
             # Remove compression-related headers since content is now uncompressed
             response_headers.pop("content-encoding", None)

@@ -900,6 +900,11 @@ prod = [
     { name = "gunicorn" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
@@ -920,6 +925,9 @@ requires-dist = [
     { name = "websockets", specifier = ">=14.1" },
 ]
 provides-extras = ["dev", "prod"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.11.11" }]
 
 [[package]]
 name = "typer"

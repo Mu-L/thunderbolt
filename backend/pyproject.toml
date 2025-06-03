@@ -5,9 +5,9 @@ description = "Backend for Thunderbolt"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Chris Roth", email = "chris@cjroth.com" }
 ]
-license = { text = "MIT" }
+license = { text = "Mozilla Public License 2.0" }
 keywords = ["fastapi", "proxy", "api"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -140,4 +140,9 @@ exclude = [
     "tests/",
     "*.pyc",
     "__pycache__/",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.11",
 ]

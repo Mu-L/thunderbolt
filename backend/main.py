@@ -1,3 +1,4 @@
+import json
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import lru_cache
 from typing import Any
@@ -16,6 +17,63 @@ from proxy import ProxyConfig, ProxyService, get_proxy_service
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
+# Global whitelist of Thunderbolt-provided model names (provider-agnostic)
+THUNDERBOLT_MODEL_WHITELIST = {
+    "llama-v3p1-70b-instruct",
+    "llama-v3p1-405b-instruct",
+    "qwen3-235b-a22b",
+    "qwen2p5-72b-instruct",
+}
+
+
+def create_model_transformer(prefix: str, check_prefix: str | None = None):
+    """Create a model transformer function for a specific provider.
+
+    Args:
+        prefix: The prefix to prepend to whitelisted model names
+        check_prefix: Optional prefix to check if model already has full path
+
+    Returns:
+        A transformer function that processes request bodies
+    """
+
+    def transformer(body: bytes) -> bytes:
+        """Transform model names in API requests.
+
+        Only transforms whitelisted Thunderbolt models. Other models pass through unchanged.
+        """
+        try:
+            # Parse the JSON body
+            data = json.loads(body.decode("utf-8"))
+
+            # Check if there's a model field
+            if "model" in data and isinstance(data["model"], str):
+                model_name = data["model"]
+
+                # Check if model needs transformation
+                should_transform = model_name in THUNDERBOLT_MODEL_WHITELIST
+
+                # If check_prefix is provided, also check that model doesn't already have it
+                if check_prefix and model_name.startswith(check_prefix):
+                    should_transform = False
+
+                if should_transform:
+                    # Prepend the prefix for whitelisted models
+                    data["model"] = f"{prefix}{model_name}"
+
+            # Return the modified JSON as bytes
+            return json.dumps(data).encode("utf-8")
+
+        except Exception as e:
+            # If transformation fails, return original body
+            import logging
+
+            logging.getLogger(__name__).warning(f"Failed to transform model: {e}")
+            return body
+
+    return transformer
 
 
 @asynccontextmanager
@@ -50,6 +108,9 @@ async def proxy_lifespan(app: FastAPI) -> Any:
                 api_key_as_query_param=False,
                 require_auth=False,  # Frontend doesn't need to authenticate
                 supports_streaming=True,  # Enable streaming support
+                request_transformer=create_model_transformer(
+                    prefix="accounts/fireworks/models/", check_prefix="accounts/"
+                ),  # Transform model names
             ),
         )
 

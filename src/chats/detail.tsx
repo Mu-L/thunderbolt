@@ -77,10 +77,11 @@ export default function ChatDetailPage() {
             id: 'system',
             name: 'System',
             provider: 'thunderbolt',
-            model: 'accounts/fireworks/models/llama-v3p1-70b-instruct',
+            model: 'llama-v3p1-70b-instruct',
             url: null,
             apiKey: null,
             isSystem: 1,
+            enabled: 1,
           })
 
           const { text } = await generateText({
