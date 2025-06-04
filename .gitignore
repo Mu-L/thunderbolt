@@ -27,3 +27,8 @@ dist-ssr
 .env
 
 **/*/target
+
+# Tauri signing keys
+*.key
+tauri.key
+.tauri/
