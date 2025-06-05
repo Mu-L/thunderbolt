@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 members = ["thunderbolt_imap_client", "thunderbolt_imap_sync", "thunderbolt_embeddings", "thunderbolt_bridge"]
 
 [workspace.dependencies]
-libsql = { version = "0.6.0", default-features = false, features = ["core"] }
+libsql = { version = "0.9.9", default-features = false, features = ["core"] }
 anyhow = "1.0.97"
 serde = { version = "1.0.219", features = ["derive"] }
 thunderbolt-lib = { path = "." }
@@ -58,7 +58,7 @@ keyring = { version = "3.6.2", features = [
     "sync-secret-service",
 ] }
 tauri-plugin-fs = "2"
-libsql = { version = "0.6.0", default-features = false, features = ["core"] }
+libsql = { version = "0.9.9", default-features = false, features = ["core"] }
 base64 = "0.22.1"
 bytes = "1.10.1"
 mail-parser = { version = "0.10.2", features = ["serde_support"] }
