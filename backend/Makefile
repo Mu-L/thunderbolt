@@ -7,7 +7,7 @@ help:
 	@echo "  make install-dev   - Install all dependencies including dev"
 	@echo "  make format        - Format code with ruff"
 	@echo "  make lint          - Run linting checks"
-	@echo "  make type-check    - Run type checking with mypy"
+	@echo "  make type-check    - Run type checking with ty"
 	@echo "  make test          - Run tests"
 	@echo "  make test-cov      - Run tests with coverage"
 	@echo "  make run           - Run the development server"
@@ -34,7 +34,7 @@ lint:
 
 # Run type checking
 type-check:
-	uv run mypy .
+	uv run ty check *.py
 
 # Run tests
 test:
@@ -66,5 +66,6 @@ clean:
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
+	find . -type d -name ".ty_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	find . -type d -name "htmlcov" -exec rm -rf {} + 

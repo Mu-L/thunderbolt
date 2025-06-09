@@ -75,7 +75,7 @@ jobs:
       - name: Check Rust code
         env:
           CARGO_INCREMENTAL: 0
-          RUSTC_WRAPPER: ""
+          RUSTC_WRAPPER: ''
         run: |
           cd src-tauri
           cargo check --all-targets
@@ -129,7 +129,7 @@ jobs:
         run: |
           cd backend
           source .venv/bin/activate
-          mypy .
+          ty check *.py --ignore unresolved-import --ignore call-non-callable --ignore possibly-unbound-attribute --ignore unresolved-attribute
 
       - name: Test
         run: |

@@ -2,7 +2,7 @@ import gzip
 import logging
 import zlib
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qs, urlencode
 
 import httpx
@@ -164,9 +164,10 @@ class ProxyService:
         headers = self.prepare_headers(request, config)
 
         # Apply request transformer if configured
-        if config.request_transformer and body:
+        if config.request_transformer is not None and body:
+            transformer = cast(Callable[[bytes], bytes], config.request_transformer)
             try:
-                body = config.request_transformer(body)
+                body = transformer(body)
             except Exception as e:
                 logger.error(f"Request transformation failed: {e}")
                 raise HTTPException(
@@ -251,9 +252,10 @@ class ProxyService:
         headers = self.prepare_headers(request, config)
 
         # Apply request transformer if configured
-        if config.request_transformer and body:
+        if config.request_transformer is not None and body:
+            transformer = cast(Callable[[bytes], bytes], config.request_transformer)
             try:
-                body = config.request_transformer(body)
+                body = transformer(body)
             except Exception as e:
                 logger.error(f"Request transformation failed: {e}")
                 raise HTTPException(

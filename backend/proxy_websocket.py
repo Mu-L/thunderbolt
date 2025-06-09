@@ -1,10 +1,12 @@
 import asyncio
 import contextlib
 import logging
+from typing import cast
 
 import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
+from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
 
@@ -61,14 +63,15 @@ class WebSocketProxyService:
 
         # Prepare headers for the target connection
         headers = {}
-        if config.api_key:
+        if config.api_key is not None:
+            api_key = cast(str, config.api_key)  # Type narrowing for ty
             if (
                 config.api_key_header.lower() == "authorization"
-                and not config.api_key.startswith("Bearer ")
+                and not api_key.startswith("Bearer ")
             ):
-                headers[config.api_key_header] = f"Bearer {config.api_key}"
+                headers[config.api_key_header] = f"Bearer {api_key}"
             else:
-                headers[config.api_key_header] = config.api_key
+                headers[config.api_key_header] = api_key
 
         try:
             # Connect to the target WebSocket
@@ -133,7 +136,7 @@ class WebSocketProxyService:
                     return_exceptions=True,
                 )
 
-        except websockets.exceptions.ConnectionClosed:
+        except ConnectionClosed:
             logger.info("Target WebSocket connection closed")
         except Exception as e:
             logger.error(f"WebSocket proxy error: {e}")
