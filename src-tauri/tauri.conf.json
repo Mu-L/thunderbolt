@@ -22,7 +22,7 @@
     "security": {
       "csp": {
         "default-src": "'self' tauri: asset:",
-        "connect-src": "ipc: http://localhost:*",
+        "connect-src": "*",
         "img-src": "'self' asset: data:",
         "font-src": "'self' data:",
         "style-src": "'self' 'unsafe-inline'",
