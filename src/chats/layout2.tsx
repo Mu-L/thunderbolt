@@ -1,7 +1,8 @@
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
-import { SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenuButton, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useSideview } from '@/sideview/provider'
-import { Sidebar } from 'lucide-react'
+import { Menu, Sidebar } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { ImperativePanelHandle } from 'react-resizable-panels'
 import { Outlet } from 'react-router'
@@ -10,7 +11,19 @@ import { Sideview } from './sideview'
 
 function HeaderContent() {
   const { open } = useSidebar()
-  return <>{!open && <SidebarTrigger className="cursor-pointer" />}</>
+  const isMobile = useIsMobile()
+  
+  return (
+    <>
+      {isMobile ? (
+        <SidebarTrigger className="cursor-pointer">
+          <Menu className="h-5 w-5" />
+        </SidebarTrigger>
+      ) : (
+        !open && <SidebarTrigger className="cursor-pointer" />
+      )}
+    </>
+  )
 }
 
 export default function Page() {
@@ -26,16 +39,16 @@ export default function Page() {
   }, [sideviewId])
 
   return (
-    <SidebarProvider>
+    <>
       <ChatSidebar />
-      <SidebarInset>
-        <ResizablePanelGroup direction="horizontal" autoSaveId="sideview">
+      <SidebarInset className="h-full overflow-hidden flex flex-col">
+        <ResizablePanelGroup direction="horizontal" autoSaveId="sideview" className="h-full">
           <ResizablePanel>
             <div className="flex flex-col h-full">
-              <header className="flex h-12 w-full items-center px-4">
+              <header className="flex h-12 w-full items-center px-4 flex-shrink-0">
                 <HeaderContent />
               </header>
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 overflow-hidden">
                 <Outlet />
               </div>
             </div>
@@ -61,6 +74,6 @@ export default function Page() {
           )}
         </ResizablePanelGroup>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   )
 }

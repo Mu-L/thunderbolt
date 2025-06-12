@@ -1,4 +1,6 @@
 import { useAutoScroll } from '@/hooks/use-auto-scroll'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import { Model } from '@/types'
 import type { UseChatHelpers } from '@ai-sdk/react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -54,8 +56,10 @@ const SuggestionButtons = ({ onSelectPrompt }: { onSelectPrompt: (prompt: string
 
 export default function ChatUI({ chatHelpers, models, selectedModel, onModelChange }: ChatUIProps) {
   const [hasMessages, setHasMessages] = useState(chatHelpers.messages.length > 0)
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const previousMessageCountRef = useRef(chatHelpers.messages.length)
+  const isMobile = useIsMobile()
 
   const { scrollContainerRef, scrollTargetRef, scrollToBottom, resetUserScroll, scrollHandlers, userHasScrolled, isAtBottom } = useAutoScroll({
     dependencies: [],
@@ -81,6 +85,41 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
     setHasMessages(currentMessageCount > 0)
   }, [chatHelpers.messages, chatHelpers.status, scrollToBottom, resetUserScroll, userHasScrolled, isAtBottom])
 
+  // Detect keyboard visibility on mobile
+  useEffect(() => {
+    if (!isMobile) return
+
+    let timeout: NodeJS.Timeout
+    const inputElement = formRef.current?.querySelector('input')
+    
+    const handleFocus = (e: FocusEvent) => {
+      if (e.target === inputElement) {
+        setIsKeyboardVisible(true)
+        // Scroll the input into view after a small delay
+        timeout = setTimeout(() => {
+          inputElement?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        }, 300)
+      }
+    }
+    
+    const handleBlur = () => {
+      clearTimeout(timeout)
+      // Delay hiding to prevent flicker
+      setTimeout(() => {
+        setIsKeyboardVisible(false)
+      }, 100)
+    }
+
+    document.addEventListener('focusin', handleFocus)
+    document.addEventListener('focusout', handleBlur)
+
+    return () => {
+      clearTimeout(timeout)
+      document.removeEventListener('focusin', handleFocus)
+      document.removeEventListener('focusout', handleBlur)
+    }
+  }, [isMobile])
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     chatHelpers.handleSubmit(e)
     // Reset user scroll state and scroll to bottom when submitting a new message
@@ -99,7 +138,10 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
   }
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden w-full max-w-[728px] mx-auto min-w-[300px]">
+    <div className={cn(
+      "flex flex-col h-full bg-background overflow-hidden w-full max-w-[728px] mx-auto min-w-[300px]",
+      isMobile && isKeyboardVisible && "pb-0"
+    )}>
       <AnimatePresence>
         {hasMessages && (
           <motion.div ref={scrollContainerRef} {...scrollHandlers} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 p-4 overflow-y-auto space-y-4">
@@ -152,12 +194,15 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
       </AnimatePresence>
 
       <motion.div
-        className="p-4"
+        className={cn(
+          "p-4",
+          isMobile && isKeyboardVisible && "fixed bottom-0 left-0 right-0 bg-background z-50"
+        )}
         style={{
           display: 'flex',
-          flex: !hasMessages ? '1' : 'none',
-          alignItems: !hasMessages ? 'center' : 'flex-end',
-          justifyContent: !hasMessages ? 'center' : 'flex-start',
+          flex: !hasMessages && !(isMobile && isKeyboardVisible) ? '1' : 'none',
+          alignItems: !hasMessages && !(isMobile && isKeyboardVisible) ? 'center' : 'flex-end',
+          justifyContent: !hasMessages && !(isMobile && isKeyboardVisible) ? 'center' : 'flex-start',
         }}
         initial={false}
         layout
@@ -210,7 +255,7 @@ export default function ChatUI({ chatHelpers, models, selectedModel, onModelChan
             </div>
           </motion.form>
 
-          {!hasMessages && (
+          {!hasMessages && !(isMobile && isKeyboardVisible) && (
             <AnimatePresence>
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ delay: 0.1 }} className="w-full overflow-x-auto pb-2">
                 <SuggestionButtons onSelectPrompt={handleSelectPrompt} />

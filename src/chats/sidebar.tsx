@@ -75,7 +75,7 @@ export default function ChatSidebar() {
       <SidebarContent className="flex flex-col h-full">
         <SidebarGroup>
           <SidebarGroupContent className="flex justify-between w-full flex-1">
-            <SidebarTrigger className="cursor-pointer" />
+            <SidebarTrigger className="cursor-pointer hidden md:flex" />
           </SidebarGroupContent>
         </SidebarGroup>
 

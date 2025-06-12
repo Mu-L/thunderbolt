@@ -79,7 +79,7 @@ export default function WelcomePage() {
   }
 
   return (
-    <div className="h-full w-full p-8 flex flex-col gap-6 bg-gradient-to-br from-background to-secondary/20">
+    <div className="h-full w-full p-4 sm:p-8 flex flex-col gap-6 bg-gradient-to-br from-background to-secondary/20 overflow-y-auto">
       <div className="max-w-4xl mx-auto w-full">
         <h1 className="text-4xl font-bold tracking-tight mb-2 text-primary">{preferredName ? `Good ${timeOfDay}, ${preferredName}` : `Good ${timeOfDay}`}</h1>
         <p className="text-muted-foreground text-lg">{date}</p>

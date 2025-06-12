@@ -16,11 +16,12 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useDrizzle } from '@/db/provider'
 import { chatThreadsTable } from '@/db/tables'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { desc, eq } from 'drizzle-orm'
-import { Loader2, MoreHorizontal, SquarePen } from 'lucide-react'
+import { Loader2, Menu, MoreHorizontal, SquarePen } from 'lucide-react'
 import { Link, Outlet, useNavigate, useParams } from 'react-router'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -29,6 +30,7 @@ export default function Page() {
   const { db } = useDrizzle()
   const queryClient = useQueryClient()
   const { open, setOpen } = useSidebar()
+  const isMobile = useIsMobile()
 
   const { chatThreadId: currentChatThreadId } = useParams()
 
@@ -159,9 +161,19 @@ export default function Page() {
           </SidebarContent>
           <SidebarRail />
         </Sidebar>
-        <SidebarInset>
-          <div className="flex h-12 w-full items-center px-4">{open ? null : <SidebarTrigger className="cursor-pointer" />}</div>
-          <Outlet />
+        <SidebarInset className="h-full overflow-hidden flex flex-col">
+          <div className="flex h-12 w-full items-center px-4 flex-shrink-0">
+            {isMobile ? (
+              <SidebarTrigger className="cursor-pointer">
+                <Menu className="h-5 w-5" />
+              </SidebarTrigger>
+            ) : (
+              !open && <SidebarTrigger className="cursor-pointer" />
+            )}
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <Outlet />
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </>
