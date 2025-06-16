@@ -281,10 +281,12 @@ class ProxyService:
             # Log request body for debugging
             if body:
                 try:
-                    body_str = body.decode('utf-8')
+                    body_str = body.decode("utf-8")
                     logger.info(f"[ProxyService] Request body: {body_str}")
                 except Exception:
-                    logger.info(f"[ProxyService] Binary body (first 100 bytes): {body[:100]!r}")
+                    logger.info(
+                        f"[ProxyService] Binary body (first 100 bytes): {body[:100]!r}"
+                    )
             response = await self.client.request(
                 method=request.method,
                 url=target_url,
@@ -419,13 +421,16 @@ class ProxyService:
             if response.status_code == 500 and "fireworks" in target_url:
                 try:
                     error_json = json.loads(content.decode("utf-8"))
-                    if error_json.get("error", {}).get("code") == "INTERNAL_SERVER_ERROR":
+                    if (
+                        error_json.get("error", {}).get("code")
+                        == "INTERNAL_SERVER_ERROR"
+                    ):
                         # Return a 503 Service Unavailable instead
                         error_response = {
                             "error": {
                                 "code": "SERVICE_UNAVAILABLE",
                                 "message": "AI service is temporarily offline. Please try again later.",
-                                "type": "service_error"
+                                "type": "service_error",
                             }
                         }
                         content = json.dumps(error_response).encode("utf-8")
