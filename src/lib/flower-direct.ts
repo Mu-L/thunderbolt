@@ -1,4 +1,4 @@
-import { getDrizzleDatabase } from '@/db/singleton'
+import { DatabaseSingleton } from '@/db/singleton'
 import { settingsTable } from '@/db/tables'
 import { eq } from 'drizzle-orm'
 
@@ -18,7 +18,7 @@ type Message = {
 
 export async function getFlowerApiKey(): Promise<string | undefined> {
   try {
-    const { db } = await getDrizzleDatabase()
+    const db = DatabaseSingleton.instance.db
     const cloudUrlSetting = await db.select().from(settingsTable).where(eq(settingsTable.key, 'cloud_url')).get()
     const cloudUrl = (cloudUrlSetting?.value as string) || 'http://localhost:8000'
 
@@ -54,7 +54,7 @@ export async function initializeFlowerIntelligence(): Promise<any> {
     flowerInstance.remoteHandoff = true
 
     // Get cloud URL from settings
-    const { db } = await getDrizzleDatabase()
+    const db = DatabaseSingleton.instance.db
     const cloudUrlSetting = await db.select().from(settingsTable).where(eq(settingsTable.key, 'cloud_url')).get()
     const cloudUrl = (cloudUrlSetting?.value as string) || 'http://localhost:8000'
 

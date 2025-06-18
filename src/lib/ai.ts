@@ -1,4 +1,4 @@
-import { getDrizzleDatabase } from '@/db/singleton'
+import { DatabaseSingleton } from '@/db/singleton'
 import { settingsTable } from '@/db/tables'
 import { Model, SaveMessagesFunction } from '@/types'
 import { createFireworks } from '@ai-sdk/fireworks'
@@ -115,7 +115,7 @@ export const createModel = async (modelConfig: Model): Promise<LanguageModel> =>
         return flower(modelConfig.model) as LanguageModel
       } else {
         // Fallback to OpenAI compatible for unknown models
-        const { db } = await getDrizzleDatabase()
+        const db = DatabaseSingleton.instance.db
         const cloudUrlSetting = await db.select().from(settingsTable).where(eq(settingsTable.key, 'cloud_url')).get()
         const cloudUrl = (cloudUrlSetting?.value as string) || 'http://localhost:8000'
 
@@ -180,7 +180,7 @@ export const aiFetchStreamingResponse = async ({ init, saveMessages, model: mode
 
     console.log('Using model', modelConfig.provider, modelConfig.model)
 
-    const { db } = await getDrizzleDatabase()
+    const db = DatabaseSingleton.instance.db
 
     const locationNameResult = await db.select().from(settingsTable).where(eq(settingsTable.key, 'location_name')).get()
     const locationLatResult = await db.select().from(settingsTable).where(eq(settingsTable.key, 'location_lat')).get()

@@ -1,4 +1,3 @@
-import { useDrizzle } from '@/db/provider'
 import { settingsTable } from '@/db/tables'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
@@ -16,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { SectionCard } from '@/components/ui/section-card'
 
+import { useDatabase } from '@/hooks/use-database'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -40,7 +40,7 @@ const locationFormSchema = z.object({
 })
 
 export default function PreferencesSettingsPage() {
-  const { db } = useDrizzle()
+  const { db } = useDatabase()
   const queryClient = useQueryClient()
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')

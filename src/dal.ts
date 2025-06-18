@@ -1,10 +1,11 @@
 import { getDefaultCloudUrl } from '@/lib/config'
 import { desc, eq, notExists } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
+import type { AnyDrizzleDatabase } from './db/database-interface'
 import { accountsTable, chatMessagesTable, chatThreadsTable, emailMessagesTable, emailThreadsTable, mcpServersTable, modelsTable, settingsTable } from './db/tables'
-import { DrizzleContextType, EmailThreadWithMessagesAndAddresses } from './types'
+import { EmailThreadWithMessagesAndAddresses } from './types'
 
-export const seedAccounts = async (db: DrizzleContextType['db']) => {
+export const seedAccounts = async (db: AnyDrizzleDatabase) => {
   await db.select().from(accountsTable)
   // if (accounts.length === 0) {
   //   await db.insert(accountsTable).values({
@@ -18,7 +19,7 @@ export const seedAccounts = async (db: DrizzleContextType['db']) => {
   // }
 }
 
-export const seedModels = async (db: DrizzleContextType['db']) => {
+export const seedModels = async (db: AnyDrizzleDatabase) => {
   const models = await db.select().from(modelsTable)
   if (models.length === 0) {
     const seedData = [
@@ -85,28 +86,25 @@ export const seedModels = async (db: DrizzleContextType['db']) => {
   }
 }
 
-export const seedSettings = async (db: DrizzleContextType['db']) => {
-  const cloudUrlSetting = await db.select().from(settingsTable).where(eq(settingsTable.key, 'cloud_url')).get()
-
-  if (!cloudUrlSetting) {
-    // Use centralized config for default cloud URL
-    await db.insert(settingsTable).values({
+export const seedSettings = async (db: AnyDrizzleDatabase) => {
+  await db
+    .insert(settingsTable)
+    .values({
       key: 'cloud_url',
       value: getDefaultCloudUrl(),
     })
-  }
+    .onConflictDoNothing()
 
-  const anonymousId = await db.select().from(settingsTable).where(eq(settingsTable.key, 'anonymous_id')).get()
-
-  if (!anonymousId) {
-    await db.insert(settingsTable).values({
+  await db
+    .insert(settingsTable)
+    .values({
       key: 'anonymous_id',
-      value: uuidv7(), // @todo look into any concerns here
+      value: uuidv7(), // @todo this should really be cryptographically secure
     })
-  }
+    .onConflictDoNothing()
 }
 
-export const seedMcpServers = async (db: DrizzleContextType['db']) => {
+export const seedMcpServers = async (db: AnyDrizzleDatabase) => {
   const existingServers = await db.select().from(mcpServersTable).limit(1)
 
   if (existingServers.length === 0) {
@@ -124,7 +122,7 @@ export const seedMcpServers = async (db: DrizzleContextType['db']) => {
  * Gets an existing empty chat thread or creates a new one
  * @returns The ID of the chat thread to use
  */
-export const getOrCreateChatThread = async (db: DrizzleContextType['db'], isEncrypted: boolean = false): Promise<string> => {
+export const getOrCreateChatThread = async (db: AnyDrizzleDatabase, isEncrypted: boolean = false): Promise<string> => {
   // First check if any threads exist
   const threads = await db.select().from(chatThreadsTable).orderBy(desc(chatThreadsTable.id))
 
@@ -153,7 +151,7 @@ export const getOrCreateChatThread = async (db: DrizzleContextType['db'], isEncr
   return chatThreadId
 }
 
-export const getEmailThreadByIdWithMessages = async (db: DrizzleContextType['db'], emailThreadId: string): Promise<EmailThreadWithMessagesAndAddresses | null> => {
+export const getEmailThreadByIdWithMessages = async (db: AnyDrizzleDatabase, emailThreadId: string): Promise<EmailThreadWithMessagesAndAddresses | null> => {
   const thread = await db.select().from(emailThreadsTable).where(eq(emailThreadsTable.id, emailThreadId)).get()
 
   if (!thread) return null
@@ -173,7 +171,7 @@ export const getEmailThreadByIdWithMessages = async (db: DrizzleContextType['db'
   return { ...thread, messages }
 }
 
-export const getEmailThreadByMessageImapIdWithMessages = async (db: DrizzleContextType['db'], imapId: string): Promise<EmailThreadWithMessagesAndAddresses | null> => {
+export const getEmailThreadByMessageImapIdWithMessages = async (db: AnyDrizzleDatabase, imapId: string): Promise<EmailThreadWithMessagesAndAddresses | null> => {
   const message = await db.select().from(emailMessagesTable).where(eq(emailMessagesTable.imapId, imapId)).get()
 
   if (!message || !message.emailThreadId) return null
@@ -198,7 +196,7 @@ export const getEmailThreadByMessageImapIdWithMessages = async (db: DrizzleConte
   return { ...thread, messages }
 }
 
-export const getEmailThreadByMessageIdWithMessages = async (db: DrizzleContextType['db'], emailMessageId: string): Promise<EmailThreadWithMessagesAndAddresses | null> => {
+export const getEmailThreadByMessageIdWithMessages = async (db: AnyDrizzleDatabase, emailMessageId: string): Promise<EmailThreadWithMessagesAndAddresses | null> => {
   const message = await db.select().from(emailMessagesTable).where(eq(emailMessagesTable.id, emailMessageId)).get()
 
   if (!message || !message.emailThreadId) return null

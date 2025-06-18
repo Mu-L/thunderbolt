@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { getOrCreateChatThread } from '@/dal'
-import { useDrizzle } from '@/db/provider'
+import { useDatabase } from '@/hooks/use-database'
 import { chatThreadsTable } from '@/db/tables'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { desc, eq } from 'drizzle-orm'
@@ -24,7 +24,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 export default function ChatSidebar() {
   const navigate = useNavigate()
-  const { db } = useDrizzle()
+  const { db } = useDatabase()
   const queryClient = useQueryClient()
 
   const { chatThreadId: currentChatThreadId } = useParams()

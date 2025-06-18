@@ -1,12 +1,12 @@
 import { getEmailThreadByIdWithMessages, getEmailThreadByMessageIdWithMessages, getEmailThreadByMessageImapIdWithMessages } from '@/dal'
-import { useDrizzle } from '@/db/provider'
+import { useDatabase } from '@/hooks/use-database'
 import { useSideview } from '@/sideview/provider'
 import { EmailThreadView } from '@/sideview/thread'
 import { useQuery } from '@tanstack/react-query'
 
 export function Sideview({}: {}) {
   const { sideviewId, sideviewType } = useSideview()
-  const { db } = useDrizzle()
+  const { db } = useDatabase()
 
   console.log('sideviewType', sideviewType, sideviewId)
 

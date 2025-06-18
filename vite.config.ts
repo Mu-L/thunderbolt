@@ -25,6 +25,16 @@ export default defineConfig(async () => ({
       analyzerMode: 'static',
       openAnalyzer: false,
     }),
+    {
+      name: 'configure-response-headers',
+      configureServer: (server) => {
+        server.middlewares.use((_req, res, next) => {
+          res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp')
+          res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+          next()
+        })
+      },
+    },
   ],
 
   resolve: {
@@ -53,5 +63,8 @@ export default defineConfig(async () => ({
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ['**/src-tauri/**'],
     },
+  },
+  optimizeDeps: {
+    exclude: ['sqlocal'],
   },
 }))

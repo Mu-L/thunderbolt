@@ -1,5 +1,5 @@
 import ChatUI from '@/components/chat/chat-ui'
-import { useDrizzle } from '@/db/provider'
+import { useDatabase } from '@/hooks/use-database'
 import { modelsTable, settingsTable } from '@/db/tables'
 import { aiFetchStreamingResponse } from '@/lib/ai'
 import { useMCP } from '@/lib/mcp-provider'
@@ -39,7 +39,7 @@ const getSelectedModel = async (db: SqliteRemoteDatabase) => {
 
 export default function ChatState({ id, models, initialMessages, saveMessages }: ChatStateProps) {
   const queryClient = useQueryClient()
-  const { db } = useDrizzle()
+  const { db } = useDatabase()
   const { getEnabledClients } = useMCP()
 
   const { data: selectedModel } = useQuery<Model>({
