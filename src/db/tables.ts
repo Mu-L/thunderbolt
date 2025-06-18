@@ -22,7 +22,7 @@ export const float32Array = customType<{
 
 export const settingsTable = sqliteTable('settings', {
   key: text('key').primaryKey(),
-  value: text('value', { mode: 'json' }),
+  value: text('value'),
   updatedAt: integer('updated_at').default(sql`(unixepoch())`),
 })
 
