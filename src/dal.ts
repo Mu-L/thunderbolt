@@ -3,7 +3,7 @@ import { desc, eq, notExists } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import type { AnyDrizzleDatabase } from './db/database-interface'
 import { accountsTable, chatMessagesTable, chatThreadsTable, emailMessagesTable, emailThreadsTable, mcpServersTable, modelsTable, settingsTable } from './db/tables'
-import { EmailThreadWithMessagesAndAddresses } from './types'
+import { EmailThreadWithMessagesAndAddresses, type Model } from './types'
 
 export const seedAccounts = async (db: AnyDrizzleDatabase) => {
   await db.select().from(accountsTable)
@@ -116,6 +116,31 @@ export const seedMcpServers = async (db: AnyDrizzleDatabase) => {
       enabled: 1,
     })
   }
+}
+/**
+ * Gets the currently selected model or falls back to the system default model
+ * @param db Database instance
+ * @returns The selected model or system default model
+ * @throws Error if no system model is found
+ */
+export const getSelectedModel = async (db: AnyDrizzleDatabase): Promise<Model> => {
+  const model = await db
+    .select()
+    .from(modelsTable)
+    .where(eq(modelsTable.id, db.select({ value: settingsTable.value }).from(settingsTable).where(eq(settingsTable.key, 'selected_model'))))
+    .get()
+
+  if (model?.id) {
+    return model
+  }
+
+  const systemModel = await db.select().from(modelsTable).where(eq(modelsTable.isSystem, 1)).get()
+
+  if (!systemModel) {
+    throw new Error('No system model found')
+  }
+
+  return systemModel
 }
 
 /**

@@ -1,6 +1,7 @@
 import ChatUI from '@/components/chat/chat-ui'
+import { getSelectedModel } from '@/dal'
+import { settingsTable } from '@/db/tables'
 import { useDatabase } from '@/hooks/use-database'
-import { modelsTable, settingsTable } from '@/db/tables'
 import { aiFetchStreamingResponse } from '@/lib/ai'
 import { useMCP } from '@/lib/mcp-provider'
 import { Model, SaveMessagesFunction } from '@/types'
@@ -18,25 +19,6 @@ interface ChatStateProps {
   saveMessages: SaveMessagesFunction
 }
 
-const getSelectedModel = async (db: SqliteRemoteDatabase) => {
-  const selectedModelId = await db.select().from(settingsTable).where(eq(settingsTable.key, 'selected_model')).get()
-  if (selectedModelId) {
-    const model = await db
-      .select()
-      .from(modelsTable)
-      .where(eq(modelsTable.id, selectedModelId.value as string))
-      .get()
-    if (model) {
-      return model
-    }
-  }
-  const systemModel = await db.select().from(modelsTable).where(eq(modelsTable.isSystem, 1)).get()
-  if (!systemModel) {
-    throw new Error('No system model found')
-  }
-  return systemModel
-}
-
 export default function ChatState({ id, models, initialMessages, saveMessages }: ChatStateProps) {
   const queryClient = useQueryClient()
   const { db } = useDatabase()
@@ -45,7 +27,7 @@ export default function ChatState({ id, models, initialMessages, saveMessages }:
   const { data: selectedModel } = useQuery<Model>({
     queryKey: ['settings', 'selected_model'],
     queryFn: async () => {
-      return await getSelectedModel(db as unknown as SqliteRemoteDatabase)
+      return await getSelectedModel(db)
     },
     initialData: models[0],
   })
