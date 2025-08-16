@@ -74,10 +74,11 @@ pub mod commands {
         path: String,
         encryption_key: Option<String>,
         pool_size: Option<u32>,
+        app_handle: tauri::AppHandle,
     ) -> Result<String, String> {
         let pool_size = pool_size.unwrap_or(4) as usize;
 
-        let db_pool = db_pool::DbPool::new(&path, encryption_key, pool_size)
+        let db_pool = db_pool::DbPool::new(&path, encryption_key, pool_size, &app_handle)
             .await
             .map_err(|e| format!("Failed to build database pool: {e}"))?;
 

@@ -1,0 +1,12 @@
+[package]
+name = "test_crsql"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libsql = { path = "./libsql/libsql" }
+tokio = { version = "1", features = ["full"] }
+
+[[bin]]
+name = "test_crsql"
+path = "test_crsql.rs"

@@ -28,8 +28,7 @@ all = ["libsql", "email", "embeddings", "bridge", "native_fetch"]
 members = ["thunderbolt_imap_client", "thunderbolt_imap_sync", "thunderbolt_embeddings", "thunderbolt_bridge", "thunderbolt_libsql", "thunderbolt_email"]
 
 [workspace.dependencies]
-# Use Thunderbird's fork with Windows build fix
-# See: https://github.com/thunderbird/libsql/commit/91d0ff37dc37f2397b39662b0727b500a93fdb32
+# Use standard libsql with dynamic extension loading
 libsql = { version = "0.9.11", default-features = false, features = ["core", "encryption"] }
 anyhow = "1.0.98"
 serde = { version = "1.0.219", features = ["derive"] }
