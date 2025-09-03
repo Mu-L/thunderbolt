@@ -230,10 +230,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - name: Install nightly toolchain
+      - name: Install stable toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           cache: false
           rustflags: ''
 
@@ -298,10 +298,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - name: Install nightly toolchain
+      - name: Install stable toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           cache: false
           rustflags: ''
 
