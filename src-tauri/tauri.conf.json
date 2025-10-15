@@ -38,9 +38,6 @@
     "iOS": {
       "frameworks": ["MetalPerformanceShaders.framework", "MetalKit.framework", "Metal.framework"],
       "developmentTeam": "BUMSKVQ3D9"
-    },
-    "android": {
-      "autoIncrementVersionCode": true
     }
   }
 }
