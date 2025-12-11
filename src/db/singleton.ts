@@ -1,6 +1,8 @@
 import type { AnyDrizzleDatabase, DatabaseInterface } from './database-interface'
+import type { PowerSyncConfig } from './powersync-connector'
+import type { PowerSyncDatabaseWrapper } from './powersync-database'
 
-export type DatabaseType = 'wa-sqlite' | 'libsql-tauri' | 'bun-sqlite'
+export type DatabaseType = 'wa-sqlite' | 'libsql-tauri' | 'bun-sqlite' | 'powersync'
 
 export class DatabaseSingleton {
   static #instance: DatabaseSingleton | null = null
@@ -23,15 +25,17 @@ export class DatabaseSingleton {
   /**
    * Initialize the database connection.
    * This method is idempotent - it will only initialize once.
-   * @param type - The database type to use ('wa-sqlite', 'libsql-tauri', or 'bun-sqlite')
+   * @param type - The database type to use ('wa-sqlite', 'libsql-tauri', 'bun-sqlite', or 'powersync')
    * @param config - Configuration for the database
    */
   public async initialize({
     type = 'wa-sqlite',
     path,
+    powersyncConfig,
   }: {
     type?: DatabaseType
     path: string
+    powersyncConfig?: PowerSyncConfig
   }): Promise<AnyDrizzleDatabase> {
     if (DatabaseSingleton.#initialized && this.#database) {
       return this.#database.db
@@ -45,6 +49,14 @@ export class DatabaseSingleton {
       // Lazy load BunSQLiteDatabase (only used in tests, not production)
       const { BunSQLiteDatabase } = await import('./bun-sqlite-database')
       this.#database = new BunSQLiteDatabase()
+    } else if (type === 'powersync') {
+      // PowerSync for cross-device sync
+      const { PowerSyncDatabaseWrapper } = await import('./powersync-database')
+      const powerSyncDb = new PowerSyncDatabaseWrapper()
+      if (powersyncConfig) {
+        powerSyncDb.configure(powersyncConfig)
+      }
+      this.#database = powerSyncDb
     } else {
       // Default to wa-sqlite for web (best performance with web workers)
       const { WaSQLiteDatabase } = await import('./wa-sqlite-database')
@@ -54,8 +66,13 @@ export class DatabaseSingleton {
     await this.#database.initialize(path)
     DatabaseSingleton.#initialized = true
 
-    const dbTypeName = type === 'libsql-tauri' ? 'LibSQL for Tauri' : type === 'bun-sqlite' ? 'Bun SQLite' : 'wa-sqlite'
-    console.info(`Initialized ${dbTypeName} database at ${path}`)
+    const dbTypeNames: Record<DatabaseType, string> = {
+      'libsql-tauri': 'LibSQL for Tauri',
+      'bun-sqlite': 'Bun SQLite',
+      powersync: 'PowerSync',
+      'wa-sqlite': 'wa-sqlite',
+    }
+    console.info(`Initialized ${dbTypeNames[type]} database at ${path}`)
 
     return this.#database.db
   }
@@ -80,6 +97,21 @@ export class DatabaseSingleton {
       throw new Error('DatabaseSingleton not initialized. Call initialize() first.')
     }
     return this.#database
+  }
+
+  /**
+   * Get the PowerSync database instance (if using PowerSync).
+   * Returns null if not using PowerSync or not initialized.
+   */
+  public get powerSyncDatabase(): PowerSyncDatabaseWrapper | null {
+    if (!this.#database) {
+      return null
+    }
+    // Check if it's a PowerSync database by checking for the powerSync getter
+    if ('powerSync' in this.#database) {
+      return this.#database as unknown as PowerSyncDatabaseWrapper
+    }
+    return null
   }
 
   /**
