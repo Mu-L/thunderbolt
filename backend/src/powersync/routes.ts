@@ -20,7 +20,7 @@ export const createPowerSyncRoutes = (database: unknown) => {
         secret: settings.powersyncJwtSecret,
         exp: `${settings.powersyncTokenExpirySeconds}s`,
         aud: 'powersync',
-        kid: 'thunderbolt-dev-key',
+        kid: settings.powersyncJwtKid,
       }),
     )
 

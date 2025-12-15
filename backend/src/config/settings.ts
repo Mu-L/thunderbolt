@@ -23,6 +23,7 @@ const settingsSchema = z.object({
 
   // PowerSync Settings
   powersyncJwtSecret: z.string().default('powersync-dev-secret-change-in-production'),
+  powersyncJwtKid: z.string().default('thunderbolt-dev-key'),
   powersyncUrl: z.string().default('http://localhost:8080'),
   powersyncTokenExpirySeconds: z.coerce.number().default(3600), // 1 hour
 
@@ -68,6 +69,7 @@ const parseSettings = (): Settings => {
     microsoftClientId: process.env.MICROSOFT_CLIENT_ID || '',
     microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
     powersyncJwtSecret: process.env.POWERSYNC_JWT_SECRET || 'powersync-dev-secret-change-in-production',
+    powersyncJwtKid: process.env.POWERSYNC_JWT_KID || 'thunderbolt-dev-key',
     powersyncUrl: process.env.POWERSYNC_URL || 'http://localhost:8080',
     powersyncTokenExpirySeconds: process.env.POWERSYNC_TOKEN_EXPIRY_SECONDS || '3600',
     logLevel: (process.env.LOG_LEVEL || 'INFO').toUpperCase(),
