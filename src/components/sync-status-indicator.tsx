@@ -70,7 +70,6 @@ export const SyncStatusIndicator: FC<SyncStatusIndicatorProps> = ({ className, s
             size="sm"
             className={cn('gap-1.5 px-2', className)}
             onClick={() => canSync && forceSync()}
-            disabled={!canSync}
           >
             <Icon
               size={iconSize}
