@@ -126,8 +126,13 @@ export class SyncService {
   private onVersionMismatch?: (requiredVersion: string) => void
   private isSyncing = false
   private _requiredVersion: string | null = null
+  private _isOnline: boolean
+  private handleOnline = () => this.handleNetworkChange(true)
+  private handleOffline = () => this.handleNetworkChange(false)
 
   constructor(options: SyncServiceOptions) {
+    // Initialize online status from navigator (default to true for SSR/non-browser environments)
+    this._isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
     this.httpClient = options.httpClient
     this.syncIntervalMs = options.syncIntervalMs ?? 30000 // Default 30 seconds
     this.onStatusChange = options.onStatusChange
@@ -141,6 +146,31 @@ export class SyncService {
    */
   get requiredVersion(): string | null {
     return this._requiredVersion
+  }
+
+  /**
+   * Get the current online status
+   */
+  get isOnline(): boolean {
+    return this._isOnline
+  }
+
+  /**
+   * Handle network status changes
+   * When going offline, status is set to 'offline'
+   * When coming back online, triggers an immediate sync
+   */
+  private handleNetworkChange(isOnline: boolean): void {
+    const wasOffline = !this._isOnline
+    this._isOnline = isOnline
+
+    if (!isOnline) {
+      this.setStatus('offline')
+    } else if (wasOffline) {
+      // Coming back online - reset status and trigger sync
+      this.setStatus('idle')
+      this.sync()
+    }
   }
 
   /**
@@ -339,6 +369,12 @@ export class SyncService {
       return
     }
 
+    // Don't sync if we're offline
+    if (!this._isOnline) {
+      this.setStatus('offline')
+      return
+    }
+
     this.isSyncing = true
     this.setStatus('syncing')
 
@@ -381,7 +417,18 @@ export class SyncService {
       return // Already started
     }
 
-    // Do an initial sync
+    // Listen for network status changes
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', this.handleOnline)
+      window.addEventListener('offline', this.handleOffline)
+    }
+
+    // Update online status in case it changed since construction
+    if (typeof navigator !== 'undefined') {
+      this._isOnline = navigator.onLine
+    }
+
+    // Do an initial sync (will be skipped if offline)
     this.sync()
 
     // Set up periodic sync
@@ -396,6 +443,12 @@ export class SyncService {
    * Stop periodic sync
    */
   stop(): void {
+    // Remove network status listeners
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.handleOnline)
+      window.removeEventListener('offline', this.handleOffline)
+    }
+
     if (this.syncIntervalId) {
       clearInterval(this.syncIntervalId)
       this.syncIntervalId = null
