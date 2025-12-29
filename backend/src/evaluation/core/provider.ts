@@ -128,4 +128,59 @@ export type Provider = {
   runEvaluation?<TInput, TOutput, TExpected>(
     config: EvaluationConfig<TInput, TOutput, TExpected>,
   ): Promise<SuiteResult<TInput, TOutput>>
+
+  /**
+   * Run trace evaluation by attaching feedback to existing production runs (optional)
+   *
+   * This is different from `runEvaluation` which creates new experiment runs.
+   * Trace evaluation evaluates existing production traces and attaches
+   * feedback scores directly to the original runs in the observability data.
+   *
+   * This follows LangSmith's "online evaluation" pattern where you use
+   * `createFeedback()` to annotate existing runs rather than creating new ones.
+   *
+   * Only providers with observability features (supportsTraces=true) should implement this.
+   */
+  runTraceEvaluation?<TOutput, TExpected>(
+    config: TraceEvaluationConfig<TOutput, TExpected>,
+  ): Promise<TraceEvaluationResult>
+}
+
+/**
+ * Configuration for trace evaluation
+ */
+export type TraceEvaluationConfig<TOutput = unknown, TExpected = unknown> = {
+  /** Name for this evaluation run */
+  name: string
+  /** Traces to evaluate */
+  traces: Trace[]
+  /** Evaluators to score outputs */
+  evaluators: Evaluator<unknown, TOutput, TExpected>[]
+  /** Show verbose output */
+  verbose?: boolean
+}
+
+/**
+ * Result from trace evaluation
+ */
+export type TraceEvaluationResult = {
+  /** Total traces evaluated */
+  total: number
+  /** Traces that passed all evaluators */
+  passed: number
+  /** Traces that failed */
+  failed: number
+  /** Traces with errors */
+  errored: number
+  /** Average score across all evaluators */
+  avgScore: number
+  /** Scores by evaluator */
+  scoresByEvaluator: Record<string, number>
+  /** Individual trace results */
+  results: Array<{
+    traceId: string
+    scores: Record<string, number>
+    passed: boolean
+    error?: string
+  }>
 }

@@ -55,6 +55,8 @@ export type {
   ExperimentRef,
   TraceFetchResult,
   EvaluationConfig,
+  TraceEvaluationConfig,
+  TraceEvaluationResult,
   Provider,
 } from './provider'
 
