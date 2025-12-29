@@ -33,6 +33,7 @@ export const tracesToDataset = (
       question: extractQuestion(trace),
       existingOutput: trace.output,
       latencyMs: trace.latencyMs,
+      error: trace.error, // Preserve error state for evaluation
     },
     expected: inferExpected(trace),
     tags: inferTags(trace),
@@ -41,6 +42,7 @@ export const tracesToDataset = (
       timestamp: trace.timestamp,
       model: trace.model,
       tokens: trace.tokens,
+      hasError: !!trace.error,
       ...trace.metadata,
     },
   }))
@@ -94,20 +96,33 @@ const inferTags = (trace: Trace): string[] => {
 }
 
 /**
+ * Filter options for trace filtering
+ */
+export type TraceFilterOptions = {
+  /** Exclude traces with errors (default: false - errors are valuable data!) */
+  excludeErrors?: boolean
+  /** Minimum content length to include (default: 0 - include all) */
+  minContentLength?: number
+}
+
+/**
  * Filter traces by quality criteria before converting to dataset
  *
- * Useful for excluding bad traces (errors, empty responses, etc.)
+ * NOTE: By default, this keeps ALL traces including errors and empty responses.
+ * Error traces are valuable for understanding failure patterns.
+ * Empty responses will score 0.0 on quality metrics, which is useful data.
+ *
+ * Use options to filter if needed for specific use cases.
  */
-export const filterValidTraces = (traces: Trace[]): Trace[] => {
+export const filterValidTraces = (traces: Trace[], options: TraceFilterOptions = {}): Trace[] => {
+  const { excludeErrors = false, minContentLength = 0 } = options
+
   return traces.filter((trace) => {
-    // Exclude traces with errors
-    if (trace.error) return false
+    // Only exclude errors if explicitly requested
+    if (excludeErrors && trace.error) return false
 
-    // Exclude empty responses
-    if (!trace.output.content.trim()) return false
-
-    // Exclude very short responses (likely errors)
-    if (trace.output.content.length < 20) return false
+    // Only filter by content length if specified
+    if (minContentLength > 0 && trace.output.content.length < minContentLength) return false
 
     return true
   })

@@ -9,4 +9,4 @@ export { behavioralDataset, getBehavioralCasesByTag, type BehavioralTestCase } f
 export { qualityDataset, getQualityCasesByCategory, getQualityCasesByTag, type QualityTestCase } from './quality'
 
 // Trace conversion utilities (for production data)
-export { tracesToDataset, filterValidTraces, sampleTraces } from './traces'
+export { tracesToDataset, filterValidTraces, sampleTraces, type TraceFilterOptions } from './traces'
