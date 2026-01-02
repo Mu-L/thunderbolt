@@ -5,7 +5,12 @@ import { createSSEStreamFromCompletion } from '@/utils/streaming'
 import type { OpenAI as PostHogOpenAI } from '@posthog/ai'
 import { Elysia } from 'elysia'
 import { APIConnectionError, APIConnectionTimeoutError } from 'openai'
-import { getInferenceClient, type InferenceProvider } from './client'
+import {
+  getInferenceClient,
+  isHeliconeConfigured,
+  HELICONE_SUPPORTED_PROVIDERS,
+  type InferenceProvider,
+} from './client'
 
 type ModelConfig = {
   provider: InferenceProvider
@@ -44,6 +49,15 @@ const parseSourceTags = (header: string | null): string[] | undefined => {
 }
 
 /**
+ * Session context for conversation tracking
+ * Used by both LangSmith and Helicone for grouping related requests
+ */
+type SessionContext = {
+  conversationId: string | undefined
+  turnNumber: number
+}
+
+/**
  * Inference API routes
  */
 export const createInferenceRoutes = () => {
@@ -65,7 +79,17 @@ export const createInferenceRoutes = () => {
 
     const { client } = getInferenceClient(provider)
 
-    console.info(`Routing model "${body.model}" to ${provider} provider`)
+    // Parse conversation session context (for LangSmith + Helicone tracking)
+    const session: SessionContext = {
+      conversationId: ctx.request.headers.get('X-Conversation-Id') ?? undefined,
+      turnNumber: parseInt(ctx.request.headers.get('X-Turn-Number') ?? '1', 10) || 1,
+    }
+
+    const heliconeEnabled = isHeliconeConfigured() && HELICONE_SUPPORTED_PROVIDERS.includes(provider)
+    const sessionInfo = session.conversationId ? ` [session: ${session.conversationId.slice(0, 8)}...]` : ''
+    console.info(
+      `Routing model "${body.model}" to ${provider} provider${heliconeEnabled ? ' (via Helicone)' : ''}${sessionInfo}`,
+    )
 
     try {
       const startTime = Date.now()
@@ -82,28 +106,44 @@ export const createInferenceRoutes = () => {
               provider,
               hasTools: !!body.tools,
               temperature: body.temperature,
+              sessionId: session.conversationId,
             },
             sourceTags,
           )
         : null
 
-      const completion = await (client as PostHogOpenAI).chat.completions.create({
-        model: internalName,
-        messages: body.messages,
-        temperature: body.temperature,
-        tools: body.tools,
-        tool_choice: body.tool_choice,
-        stream: true,
-        ...(isPostHogConfigured() && {
-          posthogProperties: {
-            model_provider: provider,
-            endpoint: '/chat/completions',
-            has_tools: !!body.tools,
-            temperature: body.temperature,
-            // @todo add distinct id and trace id
-          },
-        }),
-      })
+      // Build per-request headers for Helicone session tracking
+      const heliconeSessionHeaders: Record<string, string> =
+        isHeliconeConfigured() && HELICONE_SUPPORTED_PROVIDERS.includes(provider) && session.conversationId
+          ? {
+              'Helicone-Session-Id': session.conversationId,
+              'Helicone-Session-Path': `/turn-${session.turnNumber}`,
+              'Helicone-Session-Name': 'User Conversation',
+            }
+          : {}
+
+      const completion = await (client as PostHogOpenAI).chat.completions.create(
+        {
+          model: internalName,
+          messages: body.messages,
+          temperature: body.temperature,
+          tools: body.tools,
+          tool_choice: body.tool_choice,
+          stream: true,
+          ...(isPostHogConfigured() && {
+            posthogProperties: {
+              model_provider: provider,
+              endpoint: '/chat/completions',
+              has_tools: !!body.tools,
+              temperature: body.temperature,
+              conversation_id: session.conversationId,
+            },
+          }),
+        },
+        {
+          headers: heliconeSessionHeaders,
+        },
+      )
 
       // Use traced streaming if LangSmith is configured
       const stream = traceContext
