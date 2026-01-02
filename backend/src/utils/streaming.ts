@@ -2,22 +2,34 @@ import type { Stream } from 'openai/streaming'
 
 type ChatCompletionChunk = {
   usage?: any
+  choices?: Array<{
+    delta?: {
+      content?: string
+      tool_calls?: unknown[]
+    }
+  }>
   [key: string]: any
 }
+
+/** Callback invoked when streaming completes with the full response content */
+export type StreamCompleteCallback = (responseContent: string) => void
 
 /**
  * Creates a ReadableStream from an OpenAI completion stream with SSE formatting
  * @param completion - The OpenAI completion stream
  * @param model - Model name for logging purposes
+ * @param onComplete - Optional callback invoked with full response when streaming completes
  * @returns ReadableStream formatted for Server-Sent Events
  */
 export const createSSEStreamFromCompletion = (
   completion: Stream<ChatCompletionChunk>,
   model: string,
+  onComplete?: StreamCompleteCallback,
 ): ReadableStream<Uint8Array> => {
   const encoder = new TextEncoder()
   let lastUsage: any = null
   let isCancelled = false
+  let responseContent = '' // Accumulate response content for logging
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -31,6 +43,11 @@ export const createSSEStreamFromCompletion = (
           // Track usage data if present
           if (chunk.usage) {
             lastUsage = chunk.usage
+          }
+
+          // Accumulate content for logging callback
+          if (onComplete && chunk.choices?.[0]?.delta?.content) {
+            responseContent += chunk.choices[0].delta.content
           }
 
           // Convert chunk back to SSE format for client compatibility
@@ -60,6 +77,11 @@ export const createSSEStreamFromCompletion = (
           //   usage: lastUsage,
           //   analytics: 'captured by PostHog',
           // })
+        }
+
+        // Invoke completion callback with accumulated response
+        if (onComplete && responseContent) {
+          onComplete(responseContent)
         }
 
         if (controller.desiredSize !== null) {
