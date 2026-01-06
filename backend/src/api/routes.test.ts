@@ -48,6 +48,8 @@ describe('Main Routes', () => {
       port: 8000,
       posthogHost: 'https://us.i.posthog.com',
       posthogApiKey: 'ph_test',
+      promptfooEnabled: false,
+      promptfooApiBaseUrl: 'http://localhost:3001',
       corsOrigins: 'http://localhost:1420',
       corsOriginRegex: '',
       corsAllowCredentials: true,
