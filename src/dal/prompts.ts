@@ -117,6 +117,8 @@ export const runAutomation = async (promptId: string): Promise<string> => {
 
   if (!prompt) throw new Error('Prompt not found')
 
+  if (!prompt.modelId) throw new Error('Prompt has no model')
+
   const model = await getModel(prompt.modelId)
 
   if (!model) throw new Error('Model not found')
@@ -138,7 +140,7 @@ export const runAutomation = async (promptId: string): Promise<string> => {
     id: uuidv7(),
     role: 'user' as const,
     metadata: { modelId: model.id },
-    parts: [{ type: 'text' as const, text: prompt.prompt }],
+    parts: [{ type: 'text' as const, text: prompt.prompt ?? '' }],
   }
 
   await db.insert(chatMessagesTable).values(convertUIMessageToDbChatMessage(userMessage, threadId, null))

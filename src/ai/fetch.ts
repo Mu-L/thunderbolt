@@ -59,6 +59,8 @@ type AiFetchStreamingResponseOptions = {
 }
 
 export const createModel = async (modelConfig: Model): Promise<LanguageModelV2> => {
+  if (!modelConfig.model) throw new Error('No model specified')
+
   switch (modelConfig.provider) {
     case 'thunderbolt': {
       const { cloudUrl } = await getSettings({ cloud_url: 'http://localhost:8000/v1' })
@@ -191,7 +193,7 @@ export const aiFetchStreamingResponse = async ({
   }
 
   const systemPrompt = createPrompt({
-    modelName: model.name,
+    modelName: model.name ?? 'Unknown',
     preferredName: settings.preferredName,
     location: {
       name: settings.locationName,
@@ -212,7 +214,7 @@ export const aiFetchStreamingResponse = async ({
     const baseModel = await createModel(model)
 
     const wrappedModel = wrapLanguageModel({
-      providerId: model.provider,
+      providerId: model.provider ?? undefined,
       model: baseModel,
       middleware: [
         extractReasoningMiddleware({
@@ -229,7 +231,7 @@ export const aiFetchStreamingResponse = async ({
     // Uses vendor (actual model maker like 'mistral') for provider options key since the
     // backend recognizes vendor-specific options. Falls back to provider for user-created models.
     // See: https://github.com/vllm-project/vllm/issues/9019
-    const providerOptionsKey = model.vendor ?? model.provider
+    const providerOptionsKey = model.vendor ?? model.provider ?? 'unknown'
     const providerOptions =
       model.supportsParallelToolCalls === 0 ? { [providerOptionsKey]: { parallelToolCalls: false } } : undefined
 

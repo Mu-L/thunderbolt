@@ -22,8 +22,8 @@ export function useMcpSync() {
         if (!providerServerIds.has(dbServer.id)) {
           await addServer({
             id: dbServer.id,
-            name: dbServer.name,
-            url: dbServer.url || '',
+            name: dbServer.name ?? '',
+            url: dbServer.url ?? '',
             enabled: dbServer.enabled === 1,
           })
         }

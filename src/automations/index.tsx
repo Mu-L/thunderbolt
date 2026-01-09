@@ -76,7 +76,7 @@ export default function AutomationsPage() {
       trackEvent('automation_run', {
         automation_id: promptId,
         model: prompt?.modelId,
-        length: prompt?.prompt.length,
+        length: prompt?.prompt?.length,
       })
     } catch (error) {
       console.error(error)
@@ -284,7 +284,8 @@ const PromptCard = memo(({ prompt, triggersEnabled, onRun, onEdit, onDelete, onR
     }
   }
 
-  const truncatedPrompt = prompt.prompt.length > 100 ? prompt.prompt.substring(0, 100) + '...' : prompt.prompt
+  const promptText = prompt.prompt ?? ''
+  const truncatedPrompt = promptText.length > 100 ? promptText.substring(0, 100) + '...' : promptText
 
   return (
     <Card className="h-full flex flex-col pb-0">

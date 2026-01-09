@@ -22,7 +22,7 @@ export function convertDbChatMessageToUIMessage(message: ChatMessage): UIMessage
   return {
     id: message.id,
     parts: message.parts ?? [],
-    role: message.role,
+    role: message.role ?? 'user',
     metadata: message.metadata ?? {},
   }
 }

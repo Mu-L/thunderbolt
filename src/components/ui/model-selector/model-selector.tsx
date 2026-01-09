@@ -29,8 +29,8 @@ const categorizeModels = (
 
     const item: SearchableMenuItem<ModelItemData> = {
       id: model.id,
-      label: model.name,
-      description: model.description || model.model,
+      label: model.name ?? 'Unnamed Model',
+      description: model.description ?? model.model ?? undefined,
       searchTerms: [model.model, model.vendor].filter(Boolean).join(' '),
       icon: model.isConfidential === 1 ? <Lock className="size-3.5 text-green-600 dark:text-green-500" /> : undefined,
       disabled: isDisabled,

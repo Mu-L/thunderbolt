@@ -43,7 +43,7 @@ interface TaskItemProps {
 
 const TaskItem = memo(({ task, isCompleting, onComplete, onEdit, onDelete }: TaskItemProps) => {
   const [isEditing, setIsEditing] = useState(false)
-  const [editValue, setEditValue] = useState(task.item)
+  const [editValue, setEditValue] = useState(task.item ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -58,12 +58,12 @@ const TaskItem = memo(({ task, isCompleting, onComplete, onEdit, onDelete }: Tas
 
   const handleStartEdit = useCallback(() => {
     setIsEditing(true)
-    setEditValue(task.item)
+    setEditValue(task.item ?? '')
     // Focus will be handled by useEffect
   }, [task.item])
 
   const handleSaveEdit = useCallback(() => {
-    const trimmed = editValue.trim()
+    const trimmed = (editValue ?? '').trim()
     if (trimmed && trimmed !== task.item) {
       onEdit(task.id, trimmed)
     } else if (!trimmed) {
@@ -73,7 +73,7 @@ const TaskItem = memo(({ task, isCompleting, onComplete, onEdit, onDelete }: Tas
   }, [editValue, task.id, task.item, onEdit, onDelete])
 
   const handleCancelEdit = useCallback(() => {
-    setEditValue(task.item)
+    setEditValue(task.item ?? '')
     setIsEditing(false)
   }, [task.item])
 
@@ -159,7 +159,7 @@ const TaskItem = memo(({ task, isCompleting, onComplete, onEdit, onDelete }: Tas
             )}
             style={{ height: '20px' }} // Explicit height
           >
-            {task.item}
+            {task.item ?? ''}
           </button>
         )}
       </div>
@@ -307,7 +307,7 @@ export default function TasksPage() {
   // Mutations
   const addTaskMutation = useMutation({
     mutationFn: async (item: string) => {
-      const order = tasks.length > 0 ? Math.min(...tasks.map((t) => t.order)) - 100 : 1000
+      const order = tasks.length > 0 ? Math.min(...tasks.map((t) => t.order ?? 0)) - 100 : 1000
 
       await createTask({
         id: uuidv7(),
@@ -430,14 +430,14 @@ export default function TasksPage() {
             let order: number
             if (i === 0) {
               const next = taskMap.get(newOrder[1])
-              order = next ? next.order - 100 : 0
+              order = next ? (next.order ?? 0) - 100 : 0
             } else if (i === newOrder.length - 1) {
               const prev = taskMap.get(newOrder[i - 1])
-              order = prev ? prev.order + 100 : 1000
+              order = prev ? (prev.order ?? 0) + 100 : 1000
             } else {
               const prev = taskMap.get(newOrder[i - 1])
               const next = taskMap.get(newOrder[i + 1])
-              order = prev && next ? (prev.order + next.order) / 2 : i * 100
+              order = prev && next ? ((prev.order ?? 0) + (next.order ?? 0)) / 2 : i * 100
             }
 
             updates.push({ id: taskId, order })

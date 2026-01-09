@@ -6,7 +6,7 @@ import type { RefObject } from 'react'
 export type ChatThread = {
   id: string
   title: string | null
-  isEncrypted: number
+  isEncrypted: number | null
 }
 
 export type DeleteChatMutationType = UseMutationResult<void, Error, { id: string }, unknown>

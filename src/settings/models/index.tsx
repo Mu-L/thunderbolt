@@ -732,7 +732,7 @@ export default function ModelsPage() {
   }
 
   const getModelInitial = (model: Model) => {
-    return model.name[0].toUpperCase()
+    return (model.name ?? 'U')[0].toUpperCase()
   }
 
   const handleDeleteModel = (modelId: string) => {
@@ -1156,7 +1156,7 @@ export default function ModelsPage() {
                         </ModificationIndicator>
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {getProviderDisplay(model.provider)} - {model.model}
+                        {getProviderDisplay(model.provider ?? 'unknown')} - {model.model}
                       </p>
                     </div>
                   </div>

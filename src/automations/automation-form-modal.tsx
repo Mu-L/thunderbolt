@@ -116,9 +116,9 @@ export default function AutomationFormModal({
           const existingTriggers = await getAllTriggersForPrompt(prompt.id)
           const trigger = existingTriggers[0] // Assuming one trigger per prompt
 
-          const promptText = prompt.prompt
-          const titleText = prompt.title || ''
-          const modelId = prompt.modelId || selectedModel?.id || ''
+          const promptText = prompt.prompt ?? ''
+          const titleText = prompt.title ?? ''
+          const modelId = prompt.modelId ?? selectedModel?.id ?? ''
 
           setPromptText(promptText)
           setTitleText(titleText)
@@ -128,8 +128,8 @@ export default function AutomationFormModal({
             title: titleText,
             prompt: promptText,
             modelId: modelId,
-            triggerType: trigger?.triggerType || 'manual',
-            triggerTime: trigger?.triggerTime || '08:00',
+            triggerType: trigger?.triggerType ?? 'manual',
+            triggerTime: trigger?.triggerTime ?? '08:00',
           })
         }
         loadTriggerData()

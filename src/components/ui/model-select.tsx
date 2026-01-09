@@ -28,7 +28,7 @@ export const ModelSelect = memo(({ chatThread, models, selectedModelId, onModelC
       const isDisabled = chatThread ? chatThread.isEncrypted !== model.isConfidential : false
       return {
         id: model.id,
-        label: model.name,
+        label: model.name ?? 'Unnamed Model',
         icon: model.isConfidential === 1 ? <Lock className="size-3.5" /> : undefined,
         disabled: isDisabled,
         data: { model, isDisabled },
