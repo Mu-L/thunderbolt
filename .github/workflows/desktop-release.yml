@@ -52,6 +52,13 @@ jobs:
 
             Binaries will be attached to this release after successful builds.
 
+      # Create CrabNebula Cloud draft release for auto-updates
+      - name: Create CrabNebula Draft Release
+        uses: crabnebula-dev/cloud-release@v0.2.0
+        with:
+          command: release draft thunderbird/thunderbolt ${{ inputs.version }}
+          api-key: ${{ secrets.CRABNEBULA_CLOUD_API_KEY }}
+
   build:
     name: Build ${{ matrix.build_name }}
     needs: draft
@@ -239,12 +246,26 @@ jobs:
             src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
             src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz
 
+      # Find the update bundle file path
+      - name: Find update bundle
+        id: find-bundle
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/macos -name "*.app.tar.gz" | head -1)
+          elif [[ "${{ runner.os }}" == "Linux" ]]; then
+            FILE=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -1)
+          else
+            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/nsis -name "*.exe" | head -1)
+          fi
+          echo "file=$FILE" >> $GITHUB_OUTPUT
+
       # Upload to CrabNebula Cloud for auto-updates
       - name: Upload to CrabNebula Cloud
-        uses: crabnebula-dev/cloud-release@v0
+        if: steps.find-bundle.outputs.file != ''
+        uses: crabnebula-dev/cloud-release@v0.2.0
         with:
-          command: release upload
-          app: thunderbird/thunderbolt
+          command: release upload thunderbird/thunderbolt ${{ inputs.version }} --file ${{ steps.find-bundle.outputs.file }}
           api-key: ${{ secrets.CRABNEBULA_CLOUD_API_KEY }}
 
   publish:
@@ -285,8 +306,7 @@ jobs:
 
       # Publish release on CrabNebula Cloud for auto-updates
       - name: Publish to CrabNebula Cloud
-        uses: crabnebula-dev/cloud-release@v0
+        uses: crabnebula-dev/cloud-release@v0.2.0
         with:
-          command: release publish
-          app: thunderbird/thunderbolt
+          command: release publish thunderbird/thunderbolt ${{ inputs.version }}
           api-key: ${{ secrets.CRABNEBULA_CLOUD_API_KEY }}
