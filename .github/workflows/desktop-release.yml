@@ -251,13 +251,25 @@ jobs:
         id: find-bundle
         shell: bash
         run: |
+          echo "=== Debug: Looking for update bundles ==="
+          echo "Runner OS: ${{ runner.os }}"
+          echo "Matrix target: ${{ matrix.target }}"
+
           if [[ "${{ runner.os }}" == "macOS" ]]; then
-            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/macos -name "*.app.tar.gz" | head -1)
+            echo "=== Contents of bundle/macos: ==="
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/macos/ || echo "Directory not found"
+            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/macos -name "*.app.tar.gz" 2>/dev/null | head -1)
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
-            FILE=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -1)
+            echo "=== Contents of bundle/appimage: ==="
+            ls -la src-tauri/target/release/bundle/appimage/ || echo "Directory not found"
+            FILE=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" 2>/dev/null | head -1)
           else
-            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/nsis -name "*.exe" | head -1)
+            echo "=== Contents of bundle/nsis: ==="
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/nsis/ || echo "Directory not found"
+            FILE=$(find src-tauri/target/${{ matrix.target }}/release/bundle/nsis -name "*.exe" 2>/dev/null | head -1)
           fi
+
+          echo "=== Found file: $FILE ==="
           echo "file=$FILE" >> $GITHUB_OUTPUT
 
       # Upload to CrabNebula Cloud for auto-updates
