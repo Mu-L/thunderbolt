@@ -293,5 +293,5 @@ jobs:
       - name: Publish to CrabNebula Cloud
         uses: crabnebula-dev/cloud-release@v0.2.0
         with:
-          command: release publish thunderbird/thunderbolt ${{ inputs.version }}
+          command: release publish thunderbird/thunderbolt ${{ inputs.version }} --framework tauri
           api-key: ${{ secrets.CRABNEBULA_CLOUD_API_KEY }}
