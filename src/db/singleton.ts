@@ -61,14 +61,22 @@ export class DatabaseSingleton {
     DatabaseSingleton.#initialized = true
     this.#databaseType = type
 
-    const dbTypeName =
-      type === 'libsql-tauri'
-        ? 'LibSQL for Tauri'
-        : type === 'bun-sqlite'
-          ? 'Bun SQLite'
-          : type === 'wa-sqlite'
-            ? 'wa-sqlite'
-            : 'cr-sqlite'
+    let dbTypeName: string
+
+    switch (type) {
+      case 'libsql-tauri':
+        dbTypeName = 'LibSQL for Tauri'
+        break
+      case 'bun-sqlite':
+        dbTypeName = 'Bun SQLite'
+        break
+      case 'wa-sqlite':
+        dbTypeName = 'wa-sqlite'
+        break
+      default:
+        dbTypeName = 'cr-sqlite'
+    }
+
     console.info(`Initialized ${dbTypeName} database at ${path}`)
 
     return this.#database.db

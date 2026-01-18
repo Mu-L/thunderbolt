@@ -1,13 +1,10 @@
 import type { Auth } from '@/auth/elysia-plugin'
-import { user } from '@/db/auth-schema'
 import type { db as DbType } from '@/db/client'
-import { and, eq, gt } from 'drizzle-orm'
 import { Elysia, t } from 'elysia'
-import { syncChanges } from './schema'
-import { compareMigrationVersions, getRequiredMigrationVersion, upsertDevice } from './utils'
+import { getServerVersion, pullChanges, pushChanges, type SerializedChange } from './sync-core'
 
 /**
- * Serialized change format for network transport
+ * Serialized change schema for request validation
  */
 const serializedChangeSchema = t.Object({
   table: t.String(),
@@ -62,78 +59,17 @@ export const createSyncRoutes = (database: typeof DbType, auth: Auth) => {
 
           const { siteId, changes, migrationVersion } = body
 
-          // Check if client's migration version meets the minimum required version
-          // This prevents outdated clients from pushing changes and advancing their serverVersion pointer
-          const requiredVersion = await getRequiredMigrationVersion(database, authUser.id)
+          const result = await pushChanges(
+            {
+              database,
+              userId: authUser.id,
+              siteId,
+              migrationVersion,
+            },
+            changes as SerializedChange[],
+          )
 
-          // If the client's migration version is older than the required version, block push
-          if (requiredVersion && compareMigrationVersions(migrationVersion ?? null, requiredVersion) < 0) {
-            return {
-              success: false,
-              needsUpgrade: true,
-              requiredVersion,
-              serverVersion: '0', // Don't advance the client's pointer
-            }
-          }
-
-          if (changes.length === 0) {
-            // No changes to push
-            const lastChange = await database
-              .select({ id: syncChanges.id })
-              .from(syncChanges)
-              .where(eq(syncChanges.userId, authUser.id))
-              .orderBy(syncChanges.id)
-              .limit(1)
-
-            return {
-              success: true,
-              serverVersion: lastChange[0]?.id.toString() ?? '0',
-            }
-          }
-
-          // IMPORTANT: Update syncMigrationVersion BEFORE inserting changes
-          // This prevents a race condition where another device could pull the new changes
-          // before the migration version is updated, bypassing the version check
-          if (migrationVersion) {
-            if (compareMigrationVersions(migrationVersion, requiredVersion) > 0) {
-              await database
-                .update(user)
-                .set({ syncMigrationVersion: migrationVersion })
-                .where(eq(user.id, authUser.id))
-            }
-          }
-
-          // Insert all changes
-          // Note: val is already JSON-encoded from cr-sqlite, store it as-is
-          const insertedChanges = await database
-            .insert(syncChanges)
-            .values(
-              changes.map((change) => ({
-                userId: authUser.id,
-                siteId,
-                tableName: change.table,
-                pk: change.pk,
-                cid: change.cid,
-                val: change.val !== null && change.val !== undefined ? String(change.val) : null,
-                colVersion: BigInt(change.col_version),
-                dbVersion: BigInt(change.db_version),
-                cl: change.cl,
-                seq: change.seq,
-                siteIdRaw: change.site_id,
-              })),
-            )
-            .returning()
-
-          // Get the max server version from inserted changes
-          const maxServerVersion = Math.max(...insertedChanges.map((c) => c.id))
-
-          // Update or insert device record with migration version
-          await upsertDevice(database, authUser.id, siteId, migrationVersion)
-
-          return {
-            success: true,
-            serverVersion: maxServerVersion.toString(),
-          }
+          return result
         },
         {
           body: t.Object({
@@ -161,72 +97,28 @@ export const createSyncRoutes = (database: typeof DbType, auth: Auth) => {
           const { since, siteId, migrationVersion } = query
           const sinceVersion = parseInt(since, 10) || 0
 
-          // Check if client's migration version meets the minimum required version
-          const requiredVersion = await getRequiredMigrationVersion(database, authUser.id)
+          const result = await pullChanges(
+            {
+              database,
+              userId: authUser.id,
+              siteId: siteId ?? '',
+              migrationVersion,
+            },
+            sinceVersion,
+          )
 
-          // If the client's migration version is older than the required version, block sync
-          if (requiredVersion && compareMigrationVersions(migrationVersion ?? null, requiredVersion) < 0) {
+          if (!result.success) {
             return {
               changes: [],
-              serverVersion: sinceVersion.toString(),
-              needsUpgrade: true,
-              requiredVersion,
+              serverVersion: result.serverVersion,
+              needsUpgrade: result.needsUpgrade,
+              requiredVersion: result.requiredVersion,
             }
           }
 
-          // Build where conditions
-          const conditions = [eq(syncChanges.userId, authUser.id), gt(syncChanges.id, sinceVersion)]
-
-          // Exclude changes from the requesting device (they already have those)
-          if (siteId) {
-            // Note: We actually want changes NOT from this site
-            // But for simplicity, let's include all changes and let the client filter
-          }
-
-          // Get all changes for this user since the given version
-          const changes = await database
-            .select({
-              table: syncChanges.tableName,
-              pk: syncChanges.pk,
-              cid: syncChanges.cid,
-              val: syncChanges.val,
-              col_version: syncChanges.colVersion,
-              db_version: syncChanges.dbVersion,
-              site_id: syncChanges.siteIdRaw,
-              cl: syncChanges.cl,
-              seq: syncChanges.seq,
-              id: syncChanges.id,
-            })
-            .from(syncChanges)
-            .where(and(...conditions))
-            .orderBy(syncChanges.id)
-            .limit(1000) // Limit to prevent huge responses
-
-          // Get the max server version
-          const maxServerVersion = changes.length > 0 ? Math.max(...changes.map((c) => c.id)) : sinceVersion
-
-          // Transform to serialized format
-          // Note: val is stored as-is (already JSON-encoded from cr-sqlite)
-          const serializedChanges = changes.map((change) => ({
-            table: change.table,
-            pk: change.pk,
-            cid: change.cid,
-            val: change.val,
-            col_version: change.col_version.toString(),
-            db_version: change.db_version.toString(),
-            site_id: change.site_id,
-            cl: change.cl,
-            seq: change.seq,
-          }))
-
-          // Update device last seen and migration version
-          if (siteId) {
-            await upsertDevice(database, authUser.id, siteId, migrationVersion)
-          }
-
           return {
-            changes: serializedChanges,
-            serverVersion: maxServerVersion.toString(),
+            changes: result.changes,
+            serverVersion: result.serverVersion,
           }
         },
         {
@@ -249,16 +141,9 @@ export const createSyncRoutes = (database: typeof DbType, auth: Auth) => {
           return { serverVersion: '0', error: 'Unauthorized' }
         }
 
-        const lastChange = await database
-          .select({ id: syncChanges.id })
-          .from(syncChanges)
-          .where(eq(syncChanges.userId, authUser.id))
-          .orderBy(syncChanges.id)
-          .limit(1)
+        const serverVersion = await getServerVersion(database, authUser.id)
 
-        return {
-          serverVersion: lastChange[0]?.id.toString() ?? '0',
-        }
+        return { serverVersion }
       })
   )
 }
