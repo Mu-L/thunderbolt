@@ -4,81 +4,48 @@
  */
 
 import type { KyInstance } from 'ky'
-import { getLatestMigrationVersion } from './migrate'
-import { DatabaseSingleton } from './singleton'
 import {
-  deserializeChange,
-  getLastSyncedVersion,
-  getServerVersion,
-  getSiteId,
-  serializeChange,
-  type SerializedChange,
-  setLastSyncedVersion,
-  setServerVersion,
-} from './sync-utils'
+  handlePullResponse,
+  handlePushSuccess,
+  isPullVersionMismatch,
+  isPushVersionMismatch,
+  preparePull,
+  preparePush,
+  type PullResponse,
+  type PushResponse,
+} from './sync-core'
 
 // Re-export for external consumers
 export { getSiteId, type SerializedChange } from './sync-utils'
-
-/**
- * Response from sync push endpoint
- */
-type SyncPushResponse = {
-  success: boolean
-  serverVersion: string
-  needsUpgrade?: boolean
-  requiredVersion?: string
-}
-
-/**
- * Response from sync pull endpoint
- */
-type SyncPullResponse = {
-  changes: SerializedChange[]
-  serverVersion: string
-  needsUpgrade?: boolean
-  requiredVersion?: string
-}
 
 /**
  * Push local changes to the server via HTTP
  * Used during initial sync before WebSocket is established
  */
 export const pushChangesHttp = async (httpClient: KyInstance): Promise<void> => {
-  if (!DatabaseSingleton.instance.supportsSyncing) {
+  const prepared = await preparePush()
+
+  if (!prepared) {
     return
   }
-
-  const db = DatabaseSingleton.instance.syncableDatabase
-  const lastSyncedVersion = getLastSyncedVersion()
-  const { changes, dbVersion } = await db.getChanges(lastSyncedVersion)
-
-  if (changes.length === 0) {
-    return
-  }
-
-  const siteId = await getSiteId()
-  const serializedChanges = changes.map(serializeChange)
-  const migrationVersion = getLatestMigrationVersion()
 
   const response = await httpClient
     .post('sync/push', {
       json: {
-        siteId,
-        changes: serializedChanges,
-        dbVersion: dbVersion.toString(),
-        migrationVersion,
+        siteId: prepared.siteId,
+        changes: prepared.changes,
+        dbVersion: prepared.dbVersion,
+        migrationVersion: prepared.migrationVersion,
       },
     })
-    .json<SyncPushResponse>()
+    .json<PushResponse>()
 
-  if (response.needsUpgrade && response.requiredVersion) {
+  if (isPushVersionMismatch(response)) {
     throw new Error('VERSION_MISMATCH')
   }
 
   if (response.success) {
-    setLastSyncedVersion(dbVersion)
-    setServerVersion(BigInt(response.serverVersion))
+    handlePushSuccess(response, prepared.rawDbVersion)
   }
 }
 
@@ -87,35 +54,23 @@ export const pushChangesHttp = async (httpClient: KyInstance): Promise<void> => 
  * Used during initial sync before WebSocket is established
  */
 export const pullChangesHttp = async (httpClient: KyInstance): Promise<void> => {
-  if (!DatabaseSingleton.instance.supportsSyncing) {
-    return
-  }
-
-  const serverVersion = getServerVersion()
-  const siteId = await getSiteId()
-  const migrationVersion = getLatestMigrationVersion()
+  const prepared = await preparePull()
 
   const response = await httpClient
     .get('sync/pull', {
       searchParams: {
-        since: serverVersion.toString(),
-        siteId,
-        migrationVersion,
+        since: prepared.since,
+        siteId: prepared.siteId,
+        migrationVersion: prepared.migrationVersion,
       },
     })
-    .json<SyncPullResponse>()
+    .json<PullResponse>()
 
-  if (response.needsUpgrade && response.requiredVersion) {
+  if (isPullVersionMismatch(response)) {
     throw new Error('VERSION_MISMATCH')
   }
 
-  if (response.changes.length > 0) {
-    const changes = response.changes.map(deserializeChange)
-    const db = DatabaseSingleton.instance.syncableDatabase
-    await db.applyChanges(changes)
-  }
-
-  setServerVersion(BigInt(response.serverVersion))
+  await handlePullResponse(response)
 }
 
 /**

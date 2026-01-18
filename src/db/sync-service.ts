@@ -4,22 +4,21 @@
  */
 
 import { getAuthToken } from '@/lib/auth-token'
-import type { CRSQLChange } from './crsqlite-worker'
 import { getLatestMigrationVersion } from './migrate'
 import { DatabaseSingleton } from './singleton'
 import {
-  deserializeChange,
-  getLastSyncedVersion,
-  getServerVersion,
-  getSiteId,
-  serializeChange,
+  applyPullChanges,
+  extractChatThreadIds,
+  handlePushSuccess,
+  preparePush,
+  type PullResponse,
+  type PushResponse,
   type SerializedChange,
-  setLastSyncedVersion,
-  setServerVersion,
-} from './sync-utils'
+} from './sync-core'
+import { getServerVersion, getSiteId, setServerVersion } from './sync-utils'
 
 // Re-export for external consumers
-export type { SerializedChange } from './sync-utils'
+export type { SerializedChange } from './sync-core'
 
 /**
  * WebSocket message types
@@ -67,7 +66,6 @@ export class SyncService {
   private maxReconnectAttempts = 10
   private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null
   private isRunning = false
-  private pendingChanges: CRSQLChange[] = []
   private isPushingChanges = false
   private dbChangeListener: (() => void) | null = null
   private lastPushedVersion = 0n
@@ -209,12 +207,13 @@ export class SyncService {
 
       case 'push_success': {
         console.info('Push successful, server version:', response.serverVersion)
-        setServerVersion(BigInt(response.serverVersion))
-        setLastSyncedVersion(this.lastPushedVersion)
+        const pushResponse: PushResponse = { success: true, serverVersion: response.serverVersion }
+        handlePushSuccess(pushResponse, this.lastPushedVersion)
         this.isPushingChanges = false
 
         // Push any pending changes that accumulated during the push
-        if (this.pendingChanges.length > 0) {
+        const prepared = await preparePush()
+        if (prepared && prepared.changes.length > 0) {
           await this.pushLocalChanges()
         } else {
           this.setStatus('connected')
@@ -234,22 +233,16 @@ export class SyncService {
         console.info(`Received ${response.changes.length} changes from server`)
 
         if (response.changes.length > 0) {
-          const changes = response.changes.map(deserializeChange)
-          await this.applyRemoteChanges(changes)
-
-          // Extract unique table names
-          const affectedTables = [...new Set(response.changes.map((c) => c.table))]
+          // Apply changes using core function
+          const pullResponse: PullResponse = {
+            changes: response.changes,
+            serverVersion: response.serverVersion,
+          }
+          const affectedTables = await applyPullChanges(pullResponse.changes)
           this.onTablesChanged?.(affectedTables)
 
-          // Extract chat thread IDs from chat_messages changes
-          const affectedChatThreadIds = [
-            ...new Set(
-              response.changes
-                .filter((c) => c.table === 'chat_messages' && c.cid === 'chat_thread_id' && typeof c.val === 'string')
-                .map((c) => c.val as string),
-            ),
-          ]
-
+          // Extract chat thread IDs using core function
+          const affectedChatThreadIds = extractChatThreadIds(response.changes)
           if (affectedChatThreadIds.length > 0) {
             this.onChatSessionsChanged?.(affectedChatThreadIds)
           }
@@ -354,42 +347,30 @@ export class SyncService {
     }
 
     try {
-      const db = DatabaseSingleton.instance.syncableDatabase
-      const lastSyncedVersion = getLastSyncedVersion()
-      const { changes, dbVersion } = await db.getChanges(lastSyncedVersion)
+      // Use core function to prepare push
+      const prepared = await preparePush()
 
-      if (changes.length === 0) {
+      if (!prepared) {
         return
       }
 
       this.isPushingChanges = true
       this.setStatus('syncing')
-      this.lastPushedVersion = dbVersion
-
-      const serializedChanges = changes.map(serializeChange)
+      this.lastPushedVersion = prepared.rawDbVersion
 
       this.send({
         type: 'push',
-        changes: serializedChanges,
-        dbVersion: dbVersion.toString(),
+        changes: prepared.changes,
+        dbVersion: prepared.dbVersion,
       })
 
-      console.info(`Pushing ${changes.length} local changes`)
+      console.info(`Pushing ${prepared.changes.length} local changes`)
     } catch (error) {
       console.error('Failed to push local changes:', error)
       this.isPushingChanges = false
       this.setStatus('error')
       this.onError?.(error instanceof Error ? error : new Error(String(error)))
     }
-  }
-
-  private async applyRemoteChanges(changes: CRSQLChange[]): Promise<void> {
-    if (changes.length === 0) {
-      return
-    }
-
-    const db = DatabaseSingleton.instance.syncableDatabase
-    await db.applyChanges(changes)
   }
 
   /**
