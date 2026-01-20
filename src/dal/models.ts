@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import { DatabaseSingleton } from '../db/singleton'
 import { modelsTable } from '../db/tables'
+import { hashModel } from '../defaults/models'
 import { clearNullableColumns } from '../lib/utils'
 import type { Model, ModelRow } from '../types'
 import { getSettings } from './settings'
@@ -133,8 +134,13 @@ export const updateModel = async (id: string, updates: Partial<Model>): Promise<
  */
 export const resetModelToDefault = async (id: string, defaultModel: Model): Promise<void> => {
   const db = DatabaseSingleton.instance.db
+  // Compute the hash for the default model so it shows as unmodified after reset
+  const computedHash = hashModel(defaultModel)
   const { defaultHash, ...defaultFields } = defaultModel
-  await db.update(modelsTable).set(defaultFields).where(eq(modelsTable.id, id))
+  await db
+    .update(modelsTable)
+    .set({ ...defaultFields, defaultHash: computedHash })
+    .where(eq(modelsTable.id, id))
 }
 
 /**

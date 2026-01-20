@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, like } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import { DatabaseSingleton } from '../db/singleton'
 import { chatMessagesTable, chatThreadsTable, promptsTable } from '../db/tables'
+import { hashPrompt } from '../defaults/automations'
 import type { AutomationRun, Prompt } from '../types'
 import { clearNullableColumns, convertUIMessageToDbChatMessage } from '../lib/utils'
 import { getModel } from './models'
@@ -76,8 +77,13 @@ export const updateAutomation = async (id: string, updates: Partial<Prompt>): Pr
  */
 export const resetAutomationToDefault = async (id: string, defaultAutomation: Prompt): Promise<void> => {
   const db = DatabaseSingleton.instance.db
+  // Compute the hash for the default automation so it shows as unmodified after reset
+  const computedHash = hashPrompt(defaultAutomation)
   const { defaultHash, ...defaultFields } = defaultAutomation
-  await db.update(promptsTable).set(defaultFields).where(eq(promptsTable.id, id))
+  await db
+    .update(promptsTable)
+    .set({ ...defaultFields, defaultHash: computedHash })
+    .where(eq(promptsTable.id, id))
 }
 
 /**
