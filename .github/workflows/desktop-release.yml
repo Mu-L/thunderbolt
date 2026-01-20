@@ -177,20 +177,18 @@ jobs:
         if: matrix.os == 'macos-latest' && matrix.target == 'aarch64-apple-darwin'
         run: |
           echo "=== Tauri Config Check ==="
-          cat src-tauri/tauri.conf.json | grep -A 5 "createUpdaterArtifacts"
+          cat src-tauri/tauri.conf.json | grep -A 5 "createUpdaterArtifacts" || echo "createUpdaterArtifacts not found"
           echo "=== Signing Key Check ==="
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "✓ TAURI_SIGNING_PRIVATE_KEY is set"
             echo "Key length: ${#TAURI_SIGNING_PRIVATE_KEY} characters"
-            echo "Key starts with: ${TAURI_SIGNING_PRIVATE_KEY:0:20}..."
-            echo "Key ends with: ...${TAURI_SIGNING_PRIVATE_KEY: -20}"
           else
             echo "✗ TAURI_SIGNING_PRIVATE_KEY is NOT set"
           fi
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
             echo "✓ TAURI_SIGNING_PRIVATE_KEY_PASSWORD is set (length: ${#TAURI_SIGNING_PRIVATE_KEY_PASSWORD})"
           else
-            echo "✗ TAURI_SIGNING_PRIVATE_KEY_PASSWORD is NOT set (empty password)"
+            echo "ℹ TAURI_SIGNING_PRIVATE_KEY_PASSWORD is empty (no password)"
           fi
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
