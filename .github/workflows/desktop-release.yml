@@ -125,15 +125,40 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Import certificate into keychain
-          echo "$APPLE_DEVELOPER_CERTIFICATE" | base64 --decode > certificate.p12
+          # Validate required secrets
+          if [ -z "$APPLE_DEVELOPER_CERTIFICATE" ] || [ -z "$APPLE_DEVELOPER_CERTIFICATE_PASSWORD" ]; then
+            echo "Required secrets are not set"
+            exit 1
+          fi
+
+          # Decode certificate (matching iOS workflow exactly)
+          CLEAN_CERT=$(echo "$APPLE_DEVELOPER_CERTIFICATE" | tr -d '\n\r\t ' | tr -d '[:space:]')
+          echo "$CLEAN_CERT" | base64 --decode > certificate.p12
+
+          if [ ! -s certificate.p12 ]; then
+            echo "Failed to decode certificate"
+            exit 1
+          fi
+
+          # Create and configure keychain
           security create-keychain -p "build" build.keychain
           security set-keychain-settings -lut 21600 build.keychain
           security unlock-keychain -p "build" build.keychain
           security list-keychains -d user -s build.keychain login.keychain
-          security default-keychain -s build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_DEVELOPER_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign
+
+          # Convert certificate to macOS-compatible format (using older encryption algorithms)
+          openssl pkcs12 -in certificate.p12 -out temp_cert.pem -clcerts -nokeys -passin pass:"$APPLE_DEVELOPER_CERTIFICATE_PASSWORD"
+          openssl pkcs12 -in certificate.p12 -out temp_key.pem -nocerts -nodes -passin pass:"$APPLE_DEVELOPER_CERTIFICATE_PASSWORD"
+          openssl pkcs12 -export -out macos_certificate.p12 -inkey temp_key.pem -in temp_cert.pem -passout pass:"$APPLE_DEVELOPER_CERTIFICATE_PASSWORD" -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+
+          # Import the converted certificate
+          security import macos_certificate.p12 -k build.keychain -P "$APPLE_DEVELOPER_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign
+
+          # Clean up temporary files
+          rm temp_cert.pem temp_key.pem macos_certificate.p12
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "build" build.keychain
+
+          # Clean up certificate
           rm certificate.p12
 
           # Setup App Store Connect API key
