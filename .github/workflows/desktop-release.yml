@@ -62,6 +62,7 @@ jobs:
   build:
     name: Build ${{ matrix.build_name }}
     needs: draft
+    environment: thunderbolt_release
 
     strategy:
       fail-fast: false
