@@ -1,17 +1,49 @@
 import type { Context, ErrorHandler } from 'elysia'
 import { Elysia } from 'elysia'
 
-interface ErrorContext extends Context {
-  log?: {
-    warn: (data: object, message: string) => void
-    error: (data: object, message: string) => void
-  }
-}
-
-interface ErrorResponse {
+export type ErrorResponse = {
   success: false
   data: null
   error: string
+}
+
+export const STATUS_MESSAGES: Record<number, string> = {
+  400: 'Bad request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not found',
+  409: 'Conflict',
+  422: 'Unprocessable entity',
+  429: 'Too many requests',
+  500: 'An unexpected error occurred',
+  502: 'Bad gateway',
+  503: 'Service temporarily unavailable',
+  504: 'Gateway timeout',
+}
+
+/**
+ * Create a standardized error response object
+ */
+export const createErrorResponse = (message: string): ErrorResponse => ({
+  success: false,
+  data: null,
+  error: message,
+})
+
+/**
+ * Get a safe, generic error message for a given status code
+ * SECURITY: Never returns internal error details - only predefined messages
+ */
+export const getSafeErrorMessage = (status: number): string => STATUS_MESSAGES[status] ?? 'An unexpected error occurred'
+
+/**
+ * Extract HTTP status code from an error, defaulting to 500
+ */
+export const getErrorStatus = (error: unknown, fallbackStatus: number = 500): number => {
+  if (error instanceof Error && 'status' in error && typeof (error as any).status === 'number') {
+    return (error as any).status
+  }
+  return fallbackStatus
 }
 
 /**
@@ -45,44 +77,18 @@ export const createErrorHandlingMiddleware = () => {
 
 /**
  * Handle generic errors with appropriate status codes and logging
+ * SECURITY: Never expose internal error details to clients - only validation errors pass through
  */
 const handleGenericError = (error: unknown, set: Context['set'], log?: any): ErrorResponse => {
+  const currentStatus = typeof set.status === 'number' ? set.status : 500
+  const status = getErrorStatus(error, currentStatus)
+  set.status = status
+
   if (error instanceof Error) {
-    const status = (error as any).status || set.status || 500
-    set.status = status
-
-    switch (status) {
-      case 503:
-        log?.error({ error: error.message, stack: error.stack }, 'Service unavailable')
-        return createErrorResponse(`Service unavailable: ${error.message}`)
-
-      case 401:
-        log?.warn({ error: error.message }, 'Unauthorized request')
-        return createErrorResponse(`Unauthorized: ${error.message}`)
-
-      case 400:
-        log?.warn({ error: error.message }, 'Bad request')
-        return createErrorResponse(`Bad request: ${error.message}`)
-
-      default:
-        log?.error({ error: error.message, stack: error.stack }, 'Unhandled request error')
-        break
-    }
+    log?.error({ error: error.message, stack: error.stack }, `Request failed with status ${status}`)
   } else {
     log?.error({ error }, 'Non-Error exception thrown')
   }
 
-  set.status = 500
-  return createErrorResponse(error instanceof Error ? error.message : 'An unexpected error occurred')
-}
-
-/**
- * Create a standardized error response object
- */
-const createErrorResponse = (error: string): ErrorResponse => {
-  return {
-    success: false,
-    data: null,
-    error,
-  }
+  return createErrorResponse(getSafeErrorMessage(status))
 }
