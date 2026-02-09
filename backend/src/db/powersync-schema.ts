@@ -1,4 +1,4 @@
-import { index, integer, pgSchema, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { index, integer, pgSchema, primaryKey, text, timestamp, type AnyPgTable } from 'drizzle-orm/pg-core'
 import { user } from './auth-schema'
 import type { PowerSyncTableName } from '@shared/powersync-tables'
 
@@ -209,4 +209,4 @@ export const powersyncTablesByName = {
   triggers: triggersTable,
   modes: modesTable,
   devices: devicesTable,
-} satisfies Record<PowerSyncTableName, unknown>
+} satisfies Record<PowerSyncTableName, AnyPgTable>

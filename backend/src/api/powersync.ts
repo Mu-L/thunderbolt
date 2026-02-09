@@ -8,16 +8,18 @@ import { powersyncTableNames } from '@shared/powersync-tables'
 import { jwt } from '@elysiajs/jwt'
 import { and, eq, sql } from 'drizzle-orm'
 import { getTableColumns } from 'drizzle-orm'
-import type { Table } from 'drizzle-orm'
+import type { AnyPgTable } from 'drizzle-orm/pg-core'
 import { Elysia, t } from 'elysia'
 
 const validTables = new Set<string>(powersyncTableNames)
 
 /**
- * Valid column names per PowerSync table (DB names), derived from the schema. Used to reject unknown columns and prevent SQL injection.
+ * Valid column names per PowerSync table (DB names), derived from the schema.
+ * Used to reject unknown columns and prevent SQL injection.
+ * This is a defense-in-depth measure alongside identifier escaping.
  */
 const validColumnsByTableName: Record<string, Set<string>> = Object.fromEntries(
-  (Object.entries(powersyncTablesByName) as [string, Table][]).map(([tableName, table]) => [
+  (Object.entries(powersyncTablesByName) as [string, AnyPgTable][]).map(([tableName, table]) => [
     tableName,
     new Set(Object.values(getTableColumns(table)).map((col) => col.name)),
   ]),
@@ -141,8 +143,8 @@ const applyOperation = async (op: PowerSyncOperation, userId: string, database: 
  *
  * GET /token: Issues a PowerSync JWT so the client can connect. Two auth paths:
  * - Session (cookie/header): user from derive; we check device revoked, upsert device, then issue token.
- * - Bearer token only (e.g. PowerSync credential refresh): resolve session → user; 410 if user deleted, else 401.
- * Status codes: 410 = account deleted, 403 = device revoked (client should reset); 401 = generic auth failure (future: token refresh).
+ * - Bearer token only (credential refresh): resolve session → user; 410 if user deleted, else issue new JWT and return 200.
+ * Status codes: 410 = account deleted, 403 = device revoked (client should reset); 401 = no/invalid Bearer token.
  *
  * PUT /upload: Applies batched CRUD from PowerSync; requires authenticated user.
  *
@@ -197,7 +199,9 @@ export const createPowerSyncRoutes = (auth: Auth, settings: Settings, database: 
         const expiresAt = new Date(Date.now() + settings.powersyncTokenExpirySeconds * 1000).toISOString()
 
         const deviceName = request.headers.get('x-device-name')
-        if (deviceId && deviceName) {
+        const isDeviceNameValid = deviceName && deviceName.length > 0 && deviceName.length <= 100
+
+        if (deviceId && isDeviceNameValid) {
           const now = Math.floor(Date.now() / 1000)
           await database
             .insert(devicesTable)
@@ -249,8 +253,49 @@ export const createPowerSyncRoutes = (auth: Auth, settings: Settings, database: 
         return { code: 'ACCOUNT_DELETED' }
       }
 
-      set.status = 401
-      return { error: 'Unauthorized' }
+      // Token refresh: valid Bearer + user exists → issue new PowerSync JWT (same as Path 1).
+      const userId = sessionRow.userId
+      const deviceId = request.headers.get('x-device-id')
+      if (deviceId) {
+        const deviceRow = await database
+          .select({ revokedAt: devicesTable.revokedAt })
+          .from(devicesTable)
+          .where(and(eq(devicesTable.id, deviceId), eq(devicesTable.userId, userId)))
+          .limit(1)
+          .then((rows) => rows[0])
+        if (deviceRow?.revokedAt != null) {
+          set.status = 403
+          return { code: 'DEVICE_DISCONNECTED' }
+        }
+      }
+
+      const token = await powersyncJwt.sign({
+        sub: userId,
+        user_id: userId,
+      })
+      const expiresAt = new Date(Date.now() + settings.powersyncTokenExpirySeconds * 1000).toISOString()
+
+      const deviceName = request.headers.get('x-device-name')
+      const isDeviceNameValid = deviceName && deviceName.length > 0 && deviceName.length <= 100
+      if (deviceId && isDeviceNameValid) {
+        const now = Math.floor(Date.now() / 1000)
+        await database
+          .insert(devicesTable)
+          .values({
+            id: deviceId,
+            userId,
+            name: deviceName,
+            lastSeen: now,
+            createdAt: now,
+          })
+          .onConflictDoUpdate({
+            target: devicesTable.id,
+            set: { lastSeen: now, name: deviceName },
+            where: eq(devicesTable.userId, userId),
+          })
+      }
+
+      return { token, expiresAt, powerSyncUrl: settings.powersyncUrl }
     })
     .put(
       '/upload',

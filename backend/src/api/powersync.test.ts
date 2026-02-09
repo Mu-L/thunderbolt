@@ -194,6 +194,162 @@ describe('PowerSync API', () => {
       expect(devices[0]?.userId).toBe(userId)
       expect(devices[0]?.name).toBe('My Phone')
     })
+
+    it('does not upsert device when x-device-id is provided but x-device-name is empty', async () => {
+      const userId = 'user-device-no-name'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values({
+        id: userId,
+        name: 'No Name User',
+        email: 'device-no-name@example.com',
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      await db.insert(sessionTable).values({
+        id: 'session-device-no-name',
+        expiresAt,
+        token: 'bearer-device-no-name',
+        createdAt: now,
+        updatedAt: now,
+        userId,
+      })
+
+      const response = await app.handle(
+        new Request('http://localhost/powersync/token', {
+          headers: {
+            Authorization: 'Bearer bearer-device-no-name',
+            'x-device-id': 'device-empty-name',
+            'x-device-name': '',
+          },
+        }),
+      )
+      expect(response.status).toBe(200)
+
+      const devices = await db.select().from(devicesTable).where(eq(devicesTable.id, 'device-empty-name'))
+      expect(devices).toHaveLength(0)
+    })
+
+    it('does not upsert device when x-device-name exceeds 100 characters', async () => {
+      const userId = 'user-device-long-name'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values({
+        id: userId,
+        name: 'Long Name User',
+        email: 'device-long-name@example.com',
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      await db.insert(sessionTable).values({
+        id: 'session-device-long-name',
+        expiresAt,
+        token: 'bearer-device-long-name',
+        createdAt: now,
+        updatedAt: now,
+        userId,
+      })
+
+      const longName = 'a'.repeat(101)
+      const response = await app.handle(
+        new Request('http://localhost/powersync/token', {
+          headers: {
+            Authorization: 'Bearer bearer-device-long-name',
+            'x-device-id': 'device-long-name',
+            'x-device-name': longName,
+          },
+        }),
+      )
+      expect(response.status).toBe(200)
+
+      const devices = await db.select().from(devicesTable).where(eq(devicesTable.id, 'device-long-name'))
+      expect(devices).toHaveLength(0)
+    })
+
+    it('upserts device when x-device-name is exactly 100 characters', async () => {
+      const userId = 'user-device-100-char'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values({
+        id: userId,
+        name: '100 Char User',
+        email: 'device-100-char@example.com',
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      await db.insert(sessionTable).values({
+        id: 'session-device-100-char',
+        expiresAt,
+        token: 'bearer-device-100-char',
+        createdAt: now,
+        updatedAt: now,
+        userId,
+      })
+
+      const name100 = 'a'.repeat(100)
+      const response = await app.handle(
+        new Request('http://localhost/powersync/token', {
+          headers: {
+            Authorization: 'Bearer bearer-device-100-char',
+            'x-device-id': 'device-100-char',
+            'x-device-name': name100,
+          },
+        }),
+      )
+      expect(response.status).toBe(200)
+
+      const devices = await db.select().from(devicesTable).where(eq(devicesTable.id, 'device-100-char'))
+      expect(devices).toHaveLength(1)
+      expect(devices[0]?.name).toBe(name100)
+    })
+
+    it('upserts device when x-device-name is a single character', async () => {
+      const userId = 'user-device-1-char'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values({
+        id: userId,
+        name: '1 Char User',
+        email: 'device-1-char@example.com',
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      await db.insert(sessionTable).values({
+        id: 'session-device-1-char',
+        expiresAt,
+        token: 'bearer-device-1-char',
+        createdAt: now,
+        updatedAt: now,
+        userId,
+      })
+
+      const response = await app.handle(
+        new Request('http://localhost/powersync/token', {
+          headers: {
+            Authorization: 'Bearer bearer-device-1-char',
+            'x-device-id': 'device-1-char',
+            'x-device-name': 'X',
+          },
+        }),
+      )
+      expect(response.status).toBe(200)
+
+      const devices = await db.select().from(devicesTable).where(eq(devicesTable.id, 'device-1-char'))
+      expect(devices).toHaveLength(1)
+      expect(devices[0]?.name).toBe('X')
+    })
   })
 
   describe('PUT /powersync/upload', () => {

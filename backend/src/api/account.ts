@@ -41,13 +41,8 @@ export const createAccountRoutes = (auth: Auth, database: typeof DbType) => {
     .delete('/', async ({ set, user: sessionUser }) => {
       const userId = sessionUser!.id
 
-      await database.transaction(async (tx) => {
-        for (const name of powersyncTableNames) {
-          const table = powersyncTablesByName[name]
-          await tx.delete(table).where(eq(table.userId, userId))
-        }
-        await tx.delete(user).where(eq(user.id, userId))
-      })
+      // tables have cascade delete on user_id and they will be deleted automatically
+      await database.delete(user).where(eq(user.id, userId))
 
       set.status = 204
     })
