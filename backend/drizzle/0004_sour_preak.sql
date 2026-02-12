@@ -91,11 +91,12 @@ CREATE TABLE "prompts" (
 );
 --> statement-breakpoint
 CREATE TABLE "settings" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" text NOT NULL,
 	"value" text,
 	"updated_at" integer DEFAULT extract(epoch from now())::integer,
 	"default_hash" text,
-	"user_id" text NOT NULL
+	"user_id" text NOT NULL,
+	CONSTRAINT "settings_id_user_id_pk" PRIMARY KEY("id","user_id")
 );
 --> statement-breakpoint
 CREATE TABLE "tasks" (

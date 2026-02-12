@@ -1,5 +1,5 @@
 {
-  "id": "12d230b8-48a9-4154-8735-da986065ac7c",
+  "id": "b52713d1-e365-4c3c-8344-1167cf9ddf57",
   "prevId": "9187ccb1-e0ab-486a-9f1d-90641574ca41",
   "version": "7",
   "dialect": "postgresql",
@@ -1282,7 +1282,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true
         },
         "value": {
@@ -1343,7 +1343,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "settings_id_user_id_pk": {
+          "name": "settings_id_user_id_pk",
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

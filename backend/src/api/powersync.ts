@@ -2,7 +2,12 @@ import type { Auth } from '@/auth/elysia-plugin'
 import type { Settings } from '@/config/settings'
 import { session as sessionTable, user as userTable } from '@/db/auth-schema'
 import type { db as DbType } from '@/db/client'
-import { powersyncDbNameToSchemaKey, powersyncPkColumn, powersyncTablesByName } from '@/db/powersync-schema'
+import {
+  powersyncConflictTarget,
+  powersyncDbNameToSchemaKey,
+  powersyncPkColumn,
+  powersyncTablesByName,
+} from '@/db/powersync-schema'
 import { devicesTable } from '@/db/schema'
 import { type PowerSyncTableName, powersyncTableNames } from '@shared/powersync-tables'
 import { jwt } from '@elysiajs/jwt'
@@ -45,17 +50,17 @@ const toSchemaRecord = (
  * Apply a single PowerSync operation using Drizzle's query builder (parameterized, no raw SQL).
  * The user_id is always set to the authenticated user to ensure data isolation.
  */
-const applyOperation = async (op: PowerSyncOperation, userId: string, database: typeof DbType): Promise<void> => {
+const applyOperation = async (op: PowerSyncOperation, userId: string, database: typeof DbType): Promise<boolean> => {
   if (!validTables.has(op.type)) {
-    console.warn(`Unknown table: ${op.type}`)
-    return
+    return false
   }
 
   const tableName = op.type as PowerSyncTableName
   const table = powersyncTablesByName[tableName]
   const dbNameToKey = powersyncDbNameToSchemaKey[tableName]
   const pkColumn = powersyncPkColumn[tableName]
-  if (!table || !dbNameToKey || !pkColumn) return
+  const conflictTarget = powersyncConflictTarget[tableName]
+  if (!table || !dbNameToKey || !pkColumn || !conflictTarget) return false
 
   const validDbNames = new Set(Object.keys(dbNameToKey))
   const tableWithUserId = table as AnyPgTable & { userId: typeof table.userId }
@@ -67,7 +72,7 @@ const applyOperation = async (op: PowerSyncOperation, userId: string, database: 
       delete payload.user_id
       const rawData: Record<string, unknown> = { ...payload, id: op.id, user_id: userId }
       const schemaValues = toSchemaRecord(rawData, validDbNames, dbNameToKey)
-      if (Object.keys(schemaValues).length === 0) return
+      if (Object.keys(schemaValues).length === 0) return false
 
       const updateSet = { ...schemaValues }
       delete updateSet.id
@@ -77,37 +82,38 @@ const applyOperation = async (op: PowerSyncOperation, userId: string, database: 
       const insertQuery = database.insert(table).values(schemaValues as never)
       if (Object.keys(updateSet).length > 0) {
         await insertQuery.onConflictDoUpdate({
-          target: [pkColumn],
+          target: conflictTarget,
           set: updateSet as never,
           setWhere: eq(tableWithUserId.userId, userId),
         })
       } else {
-        await insertQuery.onConflictDoNothing({ target: [pkColumn] })
+        await insertQuery.onConflictDoNothing({ target: conflictTarget })
       }
-      break
+      return true
     }
     case 'PATCH': {
       if (!op.data || Object.keys(op.data).length === 0) {
-        console.warn('PATCH operation missing data')
-        return
+        return false
       }
       const patchPayload = { ...op.data } as Record<string, unknown>
       delete patchPayload.id
       delete patchPayload.user_id
       const schemaPatch = toSchemaRecord(patchPayload, validDbNames, dbNameToKey)
-      if (Object.keys(schemaPatch).length === 0) return
+      if (Object.keys(schemaPatch).length === 0) return false
 
       await database
         .update(table)
         .set(schemaPatch as never)
         .where(and(eq(pkColumn, op.id), eq(tableWithUserId.userId, userId)))
-      break
+
+      return true
     }
     case 'DELETE': {
       await database.delete(table).where(and(eq(pkColumn, op.id), eq(tableWithUserId.userId, userId)))
-      break
+      return true
     }
   }
+  return false
 }
 
 /**

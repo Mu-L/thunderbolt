@@ -547,9 +547,13 @@ describe('PowerSync API', () => {
       expect(response.status).toBe(200)
 
       const rows = await db.select().from(settingsTable).where(eq(settingsTable.key, 'shared_key'))
-      expect(rows).toHaveLength(1)
-      expect(rows[0]?.userId).toBe(userA)
-      expect(rows[0]?.value).toBe('user-a-value')
+      expect(rows).toHaveLength(2)
+      const userARow = rows.find((r) => r.userId === userA)
+      const userBRow = rows.find((r) => r.userId === userB)
+      expect(userARow?.value).toBe('user-a-value')
+      expect(userBRow?.value).toBe('user-b-attempt')
+      // user_id from payload was ignored; User B's row has session user_id
+      expect(userBRow?.userId).toBe(userB)
     })
 
     it('returns 200 and applies PATCH operation', async () => {
@@ -760,6 +764,167 @@ describe('PowerSync API', () => {
       expect(rows).toHaveLength(1)
       expect(rows[0]?.value).toBe('expected')
       expect(rows[0]?.userId).toBe(userId)
+    })
+
+    it('two users can add the same setting key and each gets their own row', async () => {
+      const userA = 'user-multi-a'
+      const userB = 'user-multi-b'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values([
+        {
+          id: userA,
+          name: 'User A',
+          email: 'multi-a@example.com',
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: userB,
+          name: 'User B',
+          email: 'multi-b@example.com',
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      await db.insert(sessionTable).values([
+        { id: 'session-multi-a', expiresAt, token: 'bearer-multi-a', createdAt: now, updatedAt: now, userId: userA },
+        { id: 'session-multi-b', expiresAt, token: 'bearer-multi-b', createdAt: now, updatedAt: now, userId: userB },
+      ])
+
+      const responseA = await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer bearer-multi-a' },
+          body: JSON.stringify({
+            operations: [{ op: 'PUT' as const, type: 'settings', id: 'ui-theme', data: { value: 'dark' } }],
+          }),
+        }),
+      )
+      expect(responseA.status).toBe(200)
+
+      const responseB = await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer bearer-multi-b' },
+          body: JSON.stringify({
+            operations: [{ op: 'PUT' as const, type: 'settings', id: 'ui-theme', data: { value: 'light' } }],
+          }),
+        }),
+      )
+      expect(responseB.status).toBe(200)
+
+      const rows = await db.select().from(settingsTable).where(eq(settingsTable.key, 'ui-theme'))
+      expect(rows).toHaveLength(2)
+      const rowA = rows.find((r) => r.userId === userA)
+      const rowB = rows.find((r) => r.userId === userB)
+      expect(rowA?.value).toBe('dark')
+      expect(rowB?.value).toBe('light')
+    })
+
+    it('two users can add and update their own settings without affecting each other', async () => {
+      const userA = 'user-isolated-a'
+      const userB = 'user-isolated-b'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values([
+        {
+          id: userA,
+          name: 'Alice',
+          email: 'isolated-a@example.com',
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: userB,
+          name: 'Bob',
+          email: 'isolated-b@example.com',
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      await db.insert(sessionTable).values([
+        {
+          id: 'session-isolated-a',
+          expiresAt,
+          token: 'bearer-isolated-a',
+          createdAt: now,
+          updatedAt: now,
+          userId: userA,
+        },
+        {
+          id: 'session-isolated-b',
+          expiresAt,
+          token: 'bearer-isolated-b',
+          createdAt: now,
+          updatedAt: now,
+          userId: userB,
+        },
+      ])
+
+      await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer bearer-isolated-a' },
+          body: JSON.stringify({
+            operations: [
+              { op: 'PUT' as const, type: 'settings', id: 'preferred_name', data: { value: 'Alice' } },
+              { op: 'PUT' as const, type: 'settings', id: 'ui-theme', data: { value: 'dark' } },
+            ],
+          }),
+        }),
+      )
+
+      await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer bearer-isolated-b' },
+          body: JSON.stringify({
+            operations: [
+              { op: 'PUT' as const, type: 'settings', id: 'preferred_name', data: { value: 'Bob' } },
+              { op: 'PUT' as const, type: 'settings', id: 'ui-theme', data: { value: 'light' } },
+            ],
+          }),
+        }),
+      )
+
+      await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer bearer-isolated-a' },
+          body: JSON.stringify({
+            operations: [
+              { op: 'PATCH' as const, type: 'settings', id: 'preferred_name', data: { value: 'Alice Smith' } },
+            ],
+          }),
+        }),
+      )
+
+      await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer bearer-isolated-b' },
+          body: JSON.stringify({
+            operations: [{ op: 'PATCH' as const, type: 'settings', id: 'ui-theme', data: { value: 'system' } }],
+          }),
+        }),
+      )
+
+      const preferredRows = await db.select().from(settingsTable).where(eq(settingsTable.key, 'preferred_name'))
+      expect(preferredRows).toHaveLength(2)
+      expect(preferredRows.find((r) => r.userId === userA)?.value).toBe('Alice Smith')
+      expect(preferredRows.find((r) => r.userId === userB)?.value).toBe('Bob')
+
+      const themeRows = await db.select().from(settingsTable).where(eq(settingsTable.key, 'ui-theme'))
+      expect(themeRows).toHaveLength(2)
+      expect(themeRows.find((r) => r.userId === userA)?.value).toBe('dark')
+      expect(themeRows.find((r) => r.userId === userB)?.value).toBe('system')
     })
 
     it('returns 200 with empty operations array', async () => {

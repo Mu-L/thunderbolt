@@ -233,7 +233,7 @@ export const powersyncDbNameToSchemaKey: Record<PowerSyncTableName, Record<strin
 ) as Record<PowerSyncTableName, Record<string, string>>
 
 /**
- * Primary key column for each PowerSync table (for onConflictDoUpdate target).
+ * Primary key column for each PowerSync table (for PATCH/DELETE where clauses).
  */
 export const powersyncPkColumn: Record<PowerSyncTableName, AnyPgColumn> = {
   settings: settingsTable.key,
@@ -246,4 +246,21 @@ export const powersyncPkColumn: Record<PowerSyncTableName, AnyPgColumn> = {
   triggers: triggersTable.id,
   modes: modesTable.id,
   devices: devicesTable.id,
+}
+
+/**
+ * Conflict target for each PowerSync table (for INSERT ON CONFLICT).
+ * Settings use (id, user_id) so each user can have their own row per setting key.
+ */
+export const powersyncConflictTarget: Record<PowerSyncTableName, AnyPgColumn[]> = {
+  settings: [settingsTable.key, settingsTable.userId],
+  chat_threads: [chatThreadsTable.id],
+  chat_messages: [chatMessagesTable.id],
+  tasks: [tasksTable.id],
+  models: [modelsTable.id],
+  mcp_servers: [mcpServersTable.id],
+  prompts: [promptsTable.id],
+  triggers: [triggersTable.id],
+  modes: [modesTable.id],
+  devices: [devicesTable.id],
 }
