@@ -57,6 +57,10 @@ type AiFetchStreamingResponseOptions = {
 export const createModel = async (modelConfig: Model) => {
   switch (modelConfig.provider) {
     case 'thunderbolt': {
+      // Tinfoil POC: Backend proxies to Tinfoil for gpt-oss-120b
+      // Uses TINFOIL_API_KEY from backend/.env (same pattern as MISTRAL_API_KEY, etc.)
+      // Backend uses TinfoilAI (OpenAI-compatible) with encrypted inference
+      // Other models (mistral, anthropic) continue using their respective providers
       const { cloudUrl } = await getSettings({ cloud_url: 'http://localhost:8000/v1' })
       const openaiCompatible = createOpenAICompatible({
         name: 'thunderbolt',

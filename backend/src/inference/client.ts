@@ -2,11 +2,12 @@ import { getSettings } from '@/config/settings'
 import { getPostHogClient, isPostHogConfigured } from '@/posthog/client'
 import { OpenAI as PostHogOpenAI } from '@posthog/ai'
 import OpenAI from 'openai'
+import { TinfoilAI } from 'tinfoil'
 
-export type InferenceProvider = 'fireworks' | 'thunderbolt' | 'mistral' | 'anthropic'
+export type InferenceProvider = 'fireworks' | 'thunderbolt' | 'mistral' | 'anthropic' | 'tinfoil'
 
 type InferenceClient = {
-  client: OpenAI | PostHogOpenAI
+  client: OpenAI | PostHogOpenAI | TinfoilAI
   provider: InferenceProvider
 }
 
@@ -29,6 +30,11 @@ let mistralClient: OpenAI | PostHogOpenAI | null = null
  * Lazily initialized Anthropic client
  */
 let anthropicClient: OpenAI | PostHogOpenAI | null = null
+
+/**
+ * Lazily initialized Tinfoil client
+ */
+let tinfoilClient: TinfoilAI | null = null
 
 /**
  * Get the Fireworks AI client
@@ -171,15 +177,47 @@ const getAnthropicClient = (fetchFn?: typeof fetch): OpenAI | PostHogOpenAI => {
 }
 
 /**
+ * Get the Tinfoil client for gpt-oss-120b with encrypted inference
+ * Uses TinfoilAI which is OpenAI-compatible
+ */
+const getTinfoilClient = (fetchFn?: typeof fetch): TinfoilAI => {
+  // Don't use cache when fetchFn is provided (primarily for testing)
+  if (tinfoilClient && !fetchFn) {
+    return tinfoilClient
+  }
+
+  const settings = getSettings()
+
+  if (!settings.tinfoilApiKey) {
+    throw new Error('Tinfoil API key not configured (set TINFOIL_API_KEY in backend/.env)')
+  }
+
+  // TinfoilAI is OpenAI-compatible and includes enclave verification
+  const client = new TinfoilAI({
+    apiKey: settings.tinfoilApiKey,
+    transport: 'tls', // Use TLS transport instead of EHBP (which requires X25519)
+    ...(fetchFn && { fetch: fetchFn }),
+  })
+
+  // Only cache if no custom fetchFn was provided
+  if (!fetchFn) {
+    tinfoilClient = client
+  }
+
+  return client
+}
+
+/**
  * Get the appropriate inference client based on provider
  * Clients are lazily initialized and reused across requests
  */
 export const getInferenceClient = (provider: InferenceProvider, fetchFn?: typeof fetch): InferenceClient => {
-  const clientMap: Record<InferenceProvider, () => OpenAI | PostHogOpenAI> = {
+  const clientMap: Record<InferenceProvider, () => OpenAI | PostHogOpenAI | TinfoilAI> = {
     thunderbolt: () => getThunderboltClient(fetchFn),
     mistral: () => getMistralClient(fetchFn),
     anthropic: () => getAnthropicClient(fetchFn),
     fireworks: () => getFireworksClient(fetchFn),
+    tinfoil: () => getTinfoilClient(fetchFn),
   }
 
   const client = clientMap[provider]()
@@ -199,6 +237,7 @@ export const clearInferenceClientCache = () => {
   thunderboltClient = null
   mistralClient = null
   anthropicClient = null
+  tinfoilClient = null
 }
 
 /**

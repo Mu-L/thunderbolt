@@ -39,6 +39,7 @@ describe('Main Routes', () => {
       exaApiKey: '',
       thunderboltInferenceUrl: '',
       thunderboltInferenceApiKey: '',
+      tinfoilApiKey: '',
       monitoringToken: '',
       googleClientId: '',
       googleClientSecret: '',

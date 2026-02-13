@@ -13,8 +13,8 @@ type ModelConfig = {
 
 export const supportedModels: Record<string, ModelConfig> = {
   'gpt-oss-120b': {
-    provider: 'thunderbolt',
-    internalName: 'openai/gpt-oss-120b',
+    provider: 'tinfoil', // Tinfoil POC: OpenAI-compatible client with encrypted inference
+    internalName: 'gpt-oss-120b',
   },
   'mistral-medium-3.1': {
     provider: 'mistral',

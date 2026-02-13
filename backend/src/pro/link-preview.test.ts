@@ -35,6 +35,7 @@ describe('Link Preview Routes', () => {
       exaApiKey: '',
       thunderboltInferenceUrl: '',
       thunderboltInferenceApiKey: '',
+      tinfoilApiKey: '',
       monitoringToken: '',
       googleClientId: '',
       googleClientSecret: '',

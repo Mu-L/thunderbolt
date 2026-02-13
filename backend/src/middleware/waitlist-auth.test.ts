@@ -11,6 +11,7 @@ const createMockSettings = (overrides: Partial<Settings> = {}): Settings => ({
   exaApiKey: '',
   thunderboltInferenceUrl: '',
   thunderboltInferenceApiKey: '',
+  tinfoilApiKey: '',
   monitoringToken: '',
   googleClientId: '',
   googleClientSecret: '',

@@ -29,6 +29,7 @@ describe('Authentication Routes', () => {
       exaApiKey: '',
       thunderboltInferenceUrl: '',
       thunderboltInferenceApiKey: '',
+      tinfoilApiKey: '',
       monitoringToken: '',
       googleClientId: 'test-google-client-id',
       googleClientSecret: 'test-google-secret',
