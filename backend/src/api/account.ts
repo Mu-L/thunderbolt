@@ -30,7 +30,7 @@ export const createAccountRoutes = (auth: Auth, database: typeof DbType) => {
     .post('/devices/:id/revoke', async ({ params, set, user: sessionUser }) => {
       const userId = sessionUser!.id
       const deviceId = params.id
-      const now = Math.floor(Date.now() / 1000)
+      const now = new Date()
       await database
         .update(devicesTable)
         .set({ revokedAt: now })

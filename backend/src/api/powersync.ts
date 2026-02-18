@@ -84,7 +84,7 @@ const issuePowerSyncToken = async (
   const deviceName = request.headers.get('x-device-name')
   const isDeviceNameValid = deviceName && deviceName.length > 0 && deviceName.length <= 100
   if (isDeviceNameValid) {
-    const now = Math.floor(Date.now() / 1000)
+    const now = new Date()
     await database
       .insert(devicesTable)
       .values({

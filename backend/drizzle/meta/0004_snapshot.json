@@ -1,5 +1,5 @@
 {
-  "id": "36757288-b804-4d46-971f-9c888d597e64",
+  "id": "b8482335-83ae-4b3d-b632-15462415b928",
   "prevId": "9187ccb1-e0ab-486a-9f1d-90641574ca41",
   "version": "7",
   "dialect": "postgresql",
@@ -694,21 +694,21 @@
         },
         "last_seen": {
           "name": "last_seen",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
-          "default": "extract(epoch from now())::integer"
+          "default": "now()"
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
-          "default": "extract(epoch from now())::integer"
+          "default": "now()"
         },
         "revoked_at": {
           "name": "revoked_at",
-          "type": "integer",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         }

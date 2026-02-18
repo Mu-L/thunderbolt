@@ -96,7 +96,6 @@ describe('Account API', () => {
       const userId = 'test-user-cascade-delete'
       const now = new Date()
       const expiresAt = new Date(now.getTime() + 3600 * 1000)
-      const epoch = Math.floor(Date.now() / 1000)
 
       await db.insert(user).values({
         id: userId,
@@ -126,8 +125,8 @@ describe('Account API', () => {
         id: 'device-cascade-1',
         userId,
         name: 'Device',
-        lastSeen: epoch,
-        createdAt: epoch,
+        lastSeen: now,
+        createdAt: now,
       })
       await db.insert(tasksTable).values({
         id: 'task-cascade-1',

@@ -96,13 +96,13 @@ describe('PowerSync API', () => {
         userId,
       })
 
-      const revokedAt = Math.floor(Date.now() / 1000)
+      const revokedAt = new Date()
       await db.insert(devicesTable).values({
         id: 'revoked-device-id',
         userId,
         name: 'Revoked Device',
-        lastSeen: revokedAt - 60,
-        createdAt: revokedAt - 120,
+        lastSeen: new Date(revokedAt.getTime() - 60 * 1000),
+        createdAt: new Date(revokedAt.getTime() - 120 * 1000),
         revokedAt,
       })
 
@@ -211,13 +211,13 @@ describe('PowerSync API', () => {
         userId,
       })
 
-      const revokedAt = Math.floor(Date.now() / 1000)
+      const revokedAt = new Date()
       await db.insert(devicesTable).values({
         id: 'revoked-bypass-device',
         userId,
         name: 'Revoked Device',
-        lastSeen: revokedAt - 60,
-        createdAt: revokedAt - 120,
+        lastSeen: new Date(revokedAt.getTime() - 60 * 1000),
+        createdAt: new Date(revokedAt.getTime() - 120 * 1000),
         revokedAt,
       })
 
