@@ -18,6 +18,7 @@ export const createSSEStreamFromCompletion = (
   const encoder = new TextEncoder()
   let lastUsage: any = null
   let isCancelled = false
+  const requestStartTime = Date.now()
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -55,11 +56,15 @@ export const createSSEStreamFromCompletion = (
 
         // Log usage if captured (PostHog will also capture this automatically)
         if (lastUsage) {
-          // console.log('Fireworks usage', {
-          //   model,
-          //   usage: lastUsage,
-          //   analytics: 'captured by PostHog',
-          // })
+          const duration = Date.now() - requestStartTime
+
+          console.info('[Usage]', {
+            model,
+            promptTokens: lastUsage.prompt_tokens,
+            completionTokens: lastUsage.completion_tokens,
+            totalTokens: lastUsage.total_tokens,
+            durationMs: duration,
+          })
         }
 
         if (controller.desiredSize !== null) {

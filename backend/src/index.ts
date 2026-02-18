@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { createMainRoutes } from '@/api/routes'
 import { createBetterAuthPlugin } from '@/auth/elysia-plugin'
 import { createGoogleAuthRoutes } from '@/auth/google'
@@ -30,8 +31,19 @@ export const createApp = async (deps?: AppDeps) => {
     database = db
   }
 
+  // Detect runtime and configure adapter
+  const isBun = typeof Bun !== 'undefined'
+
+  // Import Node adapter if running on Node.js
+  let nodeAdapter
+  if (!isBun) {
+    const { node } = await import('@elysiajs/node')
+    nodeAdapter = node()
+  }
+
   const app = new Elysia({
     prefix: '/v1',
+    ...(isBun ? {} : { adapter: nodeAdapter }),
   })
 
   if (process.env.NODE_ENV !== 'production') {
@@ -74,9 +86,25 @@ export const createApp = async (deps?: AppDeps) => {
       // Waitlist auth middleware - enforces auth on protected routes when WAITLIST_ENABLED=true
       .use(createWaitlistAuthMiddleware(settings, auth))
       // Tinfoil EHBP attestation endpoint
+      // Proxies attestation bundle from Tinfoil to frontend
+      // Errors are handled gracefully to prevent app startup failures
       .get('/attestation', async () => {
         try {
-          const response = await fetch('https://atc.tinfoil.sh/attestation')
+          const response = await fetch('https://atc.tinfoil.sh/attestation', {
+            // Add timeout to prevent hanging
+            signal: AbortSignal.timeout(10000), // 10 second timeout
+          })
+
+          if (!response.ok) {
+            console.error(`Tinfoil attestation returned status ${response.status}`)
+            return new Response(JSON.stringify({ error: 'Failed to fetch attestation bundle' }), {
+              status: response.status,
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            })
+          }
+
           const data = await response.json()
 
           return new Response(JSON.stringify(data), {
@@ -87,8 +115,21 @@ export const createApp = async (deps?: AppDeps) => {
             },
           })
         } catch (error) {
+          // Log error but return a response instead of throwing
+          // This prevents attestation endpoint failures from crashing the app
           console.error('Tinfoil attestation fetch failed:', error)
-          throw new Error('Failed to fetch Tinfoil attestation bundle')
+          return new Response(
+            JSON.stringify({
+              error: 'Failed to fetch Tinfoil attestation bundle',
+              message: error instanceof Error ? error.message : 'Unknown error',
+            }),
+            {
+              status: 502,
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            },
+          )
         }
       })
       // Mount route groups
