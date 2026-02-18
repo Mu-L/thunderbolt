@@ -132,3 +132,22 @@ export const getCorsMethodsList = (settings: Settings): string[] => {
     .map((method) => method.trim())
     .filter((method) => method.length > 0)
 }
+
+/**
+ * Validate an origin against CORS settings
+ * Returns the origin if valid, null otherwise
+ * Matches the validation logic used by @elysiajs/cors middleware
+ */
+export const validateCorsOrigin = (origin: string | null, settings: Settings): string | null => {
+  if (!origin) {
+    return null
+  }
+
+  if (settings.corsOriginRegex) {
+    const regex = new RegExp(settings.corsOriginRegex)
+    return regex.test(origin) ? origin : null
+  }
+
+  const allowedOrigins = getCorsOriginsList(settings)
+  return allowedOrigins.includes(origin) ? origin : null
+}

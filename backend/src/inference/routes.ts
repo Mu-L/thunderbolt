@@ -1,3 +1,4 @@
+import { validateCorsOrigin } from '@/config/settings'
 import { safeErrorHandler } from '@/middleware/error-handling'
 import { getPostHogClient, isPostHogConfigured } from '@/posthog/client'
 import { createSSEStreamFromCompletion } from '@/utils/streaming'
@@ -355,14 +356,26 @@ export const createInferenceRoutes = () => {
               }
             })
 
+            // Validate origin using same logic as CORS middleware
+            // Never use wildcard '*' with credentials (violates CORS spec)
+            const originHeader = ctx.request.headers.get('origin')
+            const validatedOrigin = validateCorsOrigin(originHeader, settings)
+
             const responseHeaders = new Headers({
               'Content-Type': res.headers['content-type'] || 'text/event-stream',
               'Cache-Control': 'no-cache',
               Connection: 'keep-alive',
-              'Access-Control-Allow-Origin': ctx.request.headers.get('origin') || '*',
-              'Access-Control-Allow-Credentials': 'true',
               'Access-Control-Expose-Headers': 'Ehbp-Response-Nonce',
             })
+
+            // Only set CORS headers if origin is valid
+            // This ensures EHBP responses use the same origin validation as the rest of the API
+            if (validatedOrigin) {
+              responseHeaders.set('Access-Control-Allow-Origin', validatedOrigin)
+              if (settings.corsAllowCredentials) {
+                responseHeaders.set('Access-Control-Allow-Credentials', 'true')
+              }
+            }
 
             if (ehbpResponseNonce && typeof ehbpResponseNonce === 'string') {
               responseHeaders.set('Ehbp-Response-Nonce', ehbpResponseNonce)
