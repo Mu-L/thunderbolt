@@ -1,16 +1,16 @@
+import type { PowerSyncTableName } from '@shared/powersync-tables'
 import {
+  type AnyPgColumn,
+  type AnyPgTable,
   index,
   integer,
   pgSchema,
   primaryKey,
   text,
   timestamp,
-  type AnyPgTable,
-  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
-import { user } from './auth-schema'
-import type { PowerSyncTableName } from '@shared/powersync-tables'
 import { getTableColumns } from 'drizzle-orm'
+import { user } from './auth-schema'
 
 /**
  * PowerSync tables - mirror of frontend SQLite schema.
