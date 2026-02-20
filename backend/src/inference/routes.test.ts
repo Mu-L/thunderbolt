@@ -54,7 +54,7 @@ describe('Inference Routes', () => {
     isPostHogConfiguredSpy = spyOn(posthogClient, 'isPostHogConfigured').mockReturnValue(false)
     createSSEStreamSpy = spyOn(streamingUtils, 'createSSEStreamFromCompletion').mockReturnValue(createMockSSEStream())
 
-    app = new Elysia().use(createInferenceRoutes())
+    app = new Elysia().use(createInferenceRoutes()) as unknown as Elysia
   })
 
   afterAll(() => {

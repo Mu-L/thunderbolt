@@ -84,6 +84,8 @@ export const createModel = async (modelConfig: Model) => {
           headers.set('X-Requested-Model', 'gpt-oss-120b')
           return secureClient.fetch(url, { ...init, headers })
         }
+        // Bun's fetch type expects a preconnect method.
+        wrappedFetch.preconnect = () => Promise.resolve(false)
 
         const tinfoil = createOpenAICompatible({
           name: 'tinfoil',
