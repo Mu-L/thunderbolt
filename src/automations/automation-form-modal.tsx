@@ -59,7 +59,7 @@ export default function AutomationFormModal({
 }: AutomationFormModalProps) {
   const db = DatabaseSingleton.instance.db
   const queryClient = useQueryClient()
-  const { isMobile, isReady } = useIsMobile()
+  const { isMobile } = useIsMobile()
 
   const { data: models = [] } = useQuery<Model[]>({
     queryKey: ['models', 'availableModels'],
@@ -281,11 +281,6 @@ export default function AutomationFormModal({
 
   const selectedTriggerType = form.watch('triggerType')
   const isLoading = createPromptMutation.isPending || updatePromptMutation.isPending
-
-  // Don't render until mobile detection is ready to prevent layout flash
-  if (!isReady) {
-    return null
-  }
 
   return (
     <ResponsiveModal open={isOpen} onOpenChange={onOpenChange}>
