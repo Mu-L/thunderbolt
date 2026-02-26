@@ -113,7 +113,7 @@ export class PowerSyncDatabaseImpl implements DatabaseInterface {
       // Disable web workers on iOS: WASM + Web Worker memory causes iOS to kill the
       // WKWebView WebContent process (~30s after launch), resulting in a black screen.
       // See: https://github.com/tauri-apps/tauri/issues/14371
-      flags: { useWebWorker: getPlatform() !== 'ios' },
+      flags: { useWebWorker: false },
     }
     this.powerSync = new PowerSyncDatabase(options)
 
