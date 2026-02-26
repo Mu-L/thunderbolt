@@ -2,6 +2,7 @@ import { useCurrentChatSession, useChatStore } from '@/chats/chat-store'
 import { useContextTracking as useContextTracking_default } from '@/hooks/use-context-tracking'
 import { useIsMobile as useIsMobile_default } from '@/hooks/use-mobile'
 import { isMobile as isPlatformMobile } from '@/lib/platform'
+import { cn } from '@/lib/utils'
 import { trackEvent as trackEvent_default } from '@/lib/posthog'
 import { type Model } from '@/types'
 import { useChat as useChat_default } from '@ai-sdk/react'
@@ -141,7 +142,10 @@ export const ChatPromptInput = forwardRef<ChatPromptInputRef, ChatPromptInputPro
           onStop={stop}
           autoFocus={!isMobile}
           submitOnEnter={!isStreaming && !isPlatformMobile()}
-          className={`flex flex-col bg-background dark:bg-input/30 border dark:border-input rounded-2xl w-full ${isMobile ? 'gap-0 p-4' : 'gap-2 p-3'}`}
+          className={cn(
+            'flex flex-col bg-background dark:bg-input/30 border dark:border-input rounded-2xl w-full',
+            isMobile ? 'gap-0 p-4' : 'gap-2 p-3',
+          )}
           footerStartElements={footerStartElements}
           isMobile={isMobile}
         />
