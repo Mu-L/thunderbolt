@@ -1,51 +1,70 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { execSync, spawn } from 'child_process'
 import type { DaemonState } from './types'
+import { PRIORITY_LABELS } from './assess'
 
 const STATE_DIR = join(process.env.HOME ?? '~', '.claude', 'thunderbot')
 const STATE_FILE = join(STATE_DIR, 'daemon.state.json')
 const PID_FILE = join(STATE_DIR, 'daemon.pid')
 const LOG_FILE = join(STATE_DIR, 'daemon.log')
 const POLL_INTERVAL_MS = 5 * 60 * 1000
+const MAX_HISTORY_SIZE = 200
+
+// Ensure state directory exists once at module load
+mkdirSync(STATE_DIR, { recursive: true })
 
 const log = (message: string) => {
   const timestamp = new Date().toISOString()
   const line = `[${timestamp}] ${message}\n`
   process.stdout.write(line)
   try {
-    mkdirSync(STATE_DIR, { recursive: true })
     appendFileSync(LOG_FILE, line)
   } catch {
     // Best-effort logging
   }
 }
 
+const defaultState = (): DaemonState => ({ activeTasks: [], completedTasks: [], skippedTasks: [], lastPollAt: null })
+
 const loadState = (): DaemonState => {
-  if (existsSync(STATE_FILE)) {
+  try {
     return JSON.parse(readFileSync(STATE_FILE, 'utf-8'))
+  } catch {
+    return defaultState()
   }
-  return { activeTasks: [], completedTasks: [], skippedTasks: [], lastPollAt: null }
 }
 
 const saveState = (state: DaemonState) => {
-  mkdirSync(STATE_DIR, { recursive: true })
+  // Cap history arrays to prevent unbounded growth
+  if (state.completedTasks.length > MAX_HISTORY_SIZE) {
+    state.completedTasks = state.completedTasks.slice(-MAX_HISTORY_SIZE)
+  }
+  if (state.skippedTasks.length > MAX_HISTORY_SIZE) {
+    state.skippedTasks = state.skippedTasks.slice(-MAX_HISTORY_SIZE)
+  }
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
 }
 
 const writePid = () => {
-  mkdirSync(STATE_DIR, { recursive: true })
   writeFileSync(PID_FILE, String(process.pid))
 }
 
 const clearPid = () => {
-  if (existsSync(PID_FILE)) unlinkSync(PID_FILE)
+  try {
+    unlinkSync(PID_FILE)
+  } catch {
+    // Already gone
+  }
 }
 
 const readPid = (): number | null => {
-  if (!existsSync(PID_FILE)) return null
-  const pid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10)
-  return isNaN(pid) ? null : pid
+  try {
+    const pid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10)
+    return isNaN(pid) ? null : pid
+  } catch {
+    return null
+  }
 }
 
 const isProcessRunning = (pid: number): boolean => {
@@ -148,7 +167,8 @@ const pollAndWork = async (state: DaemonState) => {
   for (const line of stdout.split('\n')) {
     const match = line.match(/\b(THU-\d+)\b\s+(.+?)(?:\s{2,}|$)/)
     if (match) {
-      issues.push({ identifier: match[1], title: match[2].trim(), goodForBot: /Good For/i.test(line) })
+      const lineLower = line.toLowerCase()
+      issues.push({ identifier: match[1], title: match[2].trim(), goodForBot: PRIORITY_LABELS.some((label) => lineLower.includes(label)) })
     }
   }
 
@@ -257,10 +277,13 @@ const showStatus = () => {
     console.log(`Run "/thunderbot-daemon start" to auto-install, or: bash .claude/thunderbot/setup.sh`)
   }
 
-  if (existsSync(LOG_FILE)) {
+  try {
     console.log(`\nRecent logs:`)
-    const lines = readFileSync(LOG_FILE, 'utf-8').trim().split('\n')
+    const content = readFileSync(LOG_FILE, 'utf-8').trim()
+    const lines = content.split('\n')
     console.log(lines.slice(-10).join('\n'))
+  } catch {
+    // No log file yet
   }
 }
 

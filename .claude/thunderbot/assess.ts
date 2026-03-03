@@ -1,12 +1,15 @@
 import type { LinearIssue, TaskAssessment } from './types'
 
-const PRIORITY_LABELS = ['good for bot']
+export const PRIORITY_LABELS = ['good for bot']
 const BLOCKER_LABELS = ['blocked', 'needs-design', 'needs-discussion', 'human required']
 const COMPLEX_LABELS = ['infra', 'devops', 'database-migration', 'powersync']
 const AUTOMATABLE_KEYWORDS = ['fix', 'bug', 'add', 'implement', 'refactor', 'update', 'remove', 'rename', 'change', 'replace']
 const NON_AUTOMATABLE_KEYWORDS = ['design', 'discuss', 'research', 'meeting', 'investigate', 'explore', 'spike', 'plan']
 
-/** Assess whether a Linear issue is feasible for automated work */
+/** Extract lowercase label names from an issue */
+export const getLabelNames = (issue: LinearIssue): string[] =>
+  issue.labels?.nodes?.map((label) => label.name.toLowerCase()) ?? []
+
 export const assessTask = (issue: LinearIssue): TaskAssessment => {
   const blockers: string[] = []
   const reasons: string[] = []
@@ -17,7 +20,7 @@ export const assessTask = (issue: LinearIssue): TaskAssessment => {
     blockers.push(`Has ${issue.children.nodes.length} child issue(s) — likely an epic or parent task`)
   }
 
-  const labelNames = issue.labels?.nodes?.map((label) => label.name.toLowerCase()) ?? []
+  const labelNames = getLabelNames(issue)
 
   for (const label of BLOCKER_LABELS) {
     if (labelNames.includes(label)) {
@@ -118,7 +121,7 @@ export const scoreTask = (issue: LinearIssue): number => {
   let score = assessment.confidence
 
   // Strongly prefer tasks labeled "Good For Bot"
-  const labelNames = issue.labels?.nodes?.map((label) => label.name.toLowerCase()) ?? []
+  const labelNames = getLabelNames(issue)
   if (PRIORITY_LABELS.some((label) => labelNames.includes(label))) {
     score += 50
   }
