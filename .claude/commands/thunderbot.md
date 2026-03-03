@@ -153,22 +153,16 @@ Use this spec to drive all implementation. Every change should trace back to a s
 
 ## Phase 6: Plan Implementation
 
-**CRITICAL: Do NOT write any code until you have an approved plan.**
+**CRITICAL: Do NOT write any code until you have a plan.**
 
-Enter plan mode to design the implementation approach:
-
-```
-EnterPlanMode()
-```
-
-Use the spec from Phase 5 and the codebase exploration results to create a detailed implementation plan. The plan should cover:
+Using the spec from Phase 5 and the codebase exploration results, write a detailed implementation plan. The plan should cover:
 
 - Exact files to create/modify and what changes each needs
 - Order of implementation steps
 - Test strategy
 - Any architectural decisions
 
-Wait for the user to approve the plan before proceeding to Phase 7.
+Use your best judgement — do NOT ask the user for approval or input. You are an autonomous agent. Proceed directly to Phase 7 once the plan is written.
 
 ## Phase 7: Implement
 
@@ -276,12 +270,66 @@ gh pr checks "$PR_NUMBER" --watch --fail-fast
 2. Fix the issue
 3. Use `/thunderpush` to commit and push, then wait for CI again
 
-### Check for review comments:
+### Wait for automated review bots
+
+After CI passes, wait for Cursor/Bugbot review comments to appear (can take up to 10 minutes):
+
 ```bash
 REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '.[] | "\(.path):\(.line) \(.body)"'
+
+# Poll for bot review comments (max 10 minutes, check every 30s)
+for i in $(seq 1 20); do
+  COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '[.[] | select(.user.type == "Bot")] | length')
+  if [ "$COMMENTS" -gt 0 ]; then
+    break
+  fi
+  sleep 30
+done
 ```
-Address real bugs/violations. Ignore style nits and false positives.
+
+### Address review comments
+
+Fetch all PR review comments:
+```bash
+gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '.[] | "\(.id) \(.user.login): \(.path):\(.line) \(.body)"'
+```
+
+Fix legitimate bugs and violations flagged by bots. Ignore style nits and false positives.
+
+### Resolve fixed comment threads
+
+After fixing issues and pushing, resolve each addressed comment thread:
+
+```bash
+# Get the PR node ID
+PR_NODE_ID=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.node_id')
+
+# Get unresolved review thread IDs
+THREAD_IDS=$(gh api graphql -f query='
+  query($id: ID!) {
+    node(id: $id) {
+      ... on PullRequest {
+        reviewThreads(first: 100) {
+          nodes { id, isResolved }
+        }
+      }
+    }
+  }
+' -f id="$PR_NODE_ID" --jq '.data.node.reviewThreads.nodes[] | select(.isResolved == false) | .id')
+
+# Resolve each thread that was addressed
+for THREAD_ID in $THREAD_IDS; do
+  gh api graphql -f query='
+    mutation($id: ID!) {
+      resolveReviewThread(input: {threadId: $id}) {
+        thread { id }
+      }
+    }
+  ' -f id="$THREAD_ID"
+done
+```
+
+After resolving, wait for CI + bots again if new commits were pushed.
 
 ## Phase 11: Cleanup & Report
 
