@@ -210,9 +210,9 @@ Follow the project's CLAUDE.md strictly:
    ```
    Apply any suggested improvements, then re-run steps 1-2 if changes were made.
 
-4. Push with `/thunderpush`:
+4. Push with `/thunderpush monitor` — this commits, pushes, then waits for CI and bot reviews:
    ```
-   Skill(skill="thunderpush")
+   Skill(skill="thunderpush", args="monitor")
    ```
 
 Never manually run `git add`, `git commit`, or `git push`. This ensures atomic, conventional commits with proper formatting.
@@ -257,79 +257,16 @@ linear issue update <identifier> --state "In Review"
 
 ## Phase 10: CI & Address Feedback
 
-### Wait for CI
+This phase is handled automatically by `/thunderpush monitor` (used in Phase 7). By this point, the last push should have already passed CI and addressed bot feedback.
+
+If the PR was finalized in Phase 9 without a `/thunderpush monitor` cycle (e.g., only `gh pr ready` was run), do a final check:
+
 ```bash
+PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
 gh pr checks "$PR_NUMBER" --watch --fail-fast
 ```
 
-### If CI fails (max 3 attempts):
-1. Read the failing check logs:
-   ```bash
-   gh run list --branch "$BRANCH" --limit 1 --json databaseId --jq '.[0].databaseId' | xargs -I{} gh run view {} --log-failed
-   ```
-2. Fix the issue
-3. Use `/thunderpush` to commit and push, then wait for CI again
-
-### Wait for automated review bots
-
-After CI passes, wait for Cursor/Bugbot review comments to appear (can take up to 10 minutes):
-
-```bash
-REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-
-# Poll for bot review comments (max 10 minutes, check every 30s)
-for i in $(seq 1 20); do
-  COMMENTS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '[.[] | select(.user.type == "Bot")] | length')
-  if [ "$COMMENTS" -gt 0 ]; then
-    break
-  fi
-  sleep 30
-done
-```
-
-### Address review comments
-
-Fetch all PR review comments:
-```bash
-gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '.[] | "\(.id) \(.user.login): \(.path):\(.line) \(.body)"'
-```
-
-Fix legitimate bugs and violations flagged by bots. Ignore style nits and false positives.
-
-### Resolve fixed comment threads
-
-After fixing issues and pushing, resolve each addressed comment thread:
-
-```bash
-# Get the PR node ID
-PR_NODE_ID=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '.node_id')
-
-# Get unresolved review thread IDs
-THREAD_IDS=$(gh api graphql -f query='
-  query($id: ID!) {
-    node(id: $id) {
-      ... on PullRequest {
-        reviewThreads(first: 100) {
-          nodes { id, isResolved }
-        }
-      }
-    }
-  }
-' -f id="$PR_NODE_ID" --jq '.data.node.reviewThreads.nodes[] | select(.isResolved == false) | .id')
-
-# Resolve each thread that was addressed
-for THREAD_ID in $THREAD_IDS; do
-  gh api graphql -f query='
-    mutation($id: ID!) {
-      resolveReviewThread(input: {threadId: $id}) {
-        thread { id }
-      }
-    }
-  ' -f id="$THREAD_ID"
-done
-```
-
-After resolving, wait for CI + bots again if new commits were pushed.
+If CI fails, fix, then push with `/thunderpush monitor` to handle the full feedback loop.
 
 ## Phase 11: Cleanup & Report
 
