@@ -195,13 +195,33 @@ Follow the project's CLAUDE.md strictly:
 
 ### Committing Changes
 
-**Always use `/thunderpush` to commit and push changes.** Never manually run `git add`, `git commit`, or `git push`. Invoke the skill:
+**Before every push**, always run quality checks:
 
-```
-Skill(skill="thunderpush")
-```
+1. Run `make check` (type checking, linting, formatting):
+   ```bash
+   make check
+   ```
+   Fix any failures. If lint issues: `make lint-fix`. If format issues: `make format`.
 
-This ensures atomic, conventional commits with proper formatting.
+2. Run tests:
+   ```bash
+   cd "$WORKTREE_PATH" && bun test
+   cd "$WORKTREE_PATH/backend" && bun test
+   ```
+   Fix any failures before proceeding.
+
+3. Run `/simplify` to review your changes:
+   ```
+   Skill(skill="simplify")
+   ```
+   Apply any suggested improvements, then re-run steps 1-2 if changes were made.
+
+4. Push with `/thunderpush`:
+   ```
+   Skill(skill="thunderpush")
+   ```
+
+Never manually run `git add`, `git commit`, or `git push`. This ensures atomic, conventional commits with proper formatting.
 
 ## Phase 8: Create Draft PR
 
@@ -231,53 +251,17 @@ EOF
 
 Save the PR number for later steps.
 
-## Phase 9: Quality Checks
-
-Run these sequentially — each may produce changes:
-
-### 1. Type Check + Lint + Format
-```bash
-make check
-```
-Fix any failures. If lint issues: `make lint-fix`. If format issues: `make format`.
-
-### 2. Tests
-```bash
-cd "$WORKTREE_PATH"
-bun test
-cd backend && bun test
-```
-Fix any failures. Re-run until stable.
-
-### 3. Code Review — `/simplify`
-
-Invoke the simplify skill to review your changes:
-```
-Skill(skill="simplify")
-```
-Apply suggested improvements. Re-run tests after changes.
-
-### After each quality check
-
-If changes were made, use `/thunderpush` to commit and push:
-```
-Skill(skill="thunderpush")
-```
-
-## Phase 10: Finalize PR
+## Phase 9: Finalize PR
 
 ```bash
 PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
 gh pr ready "$PR_NUMBER"
 
-GITHUB_USER=$(gh api user --jq '.login')
-gh pr edit "$PR_NUMBER" --add-reviewer "$GITHUB_USER"
-
 linear issue comment add <identifier> --body "[Thunderbot] PR ready for review: $(gh pr view $PR_NUMBER --json url --jq '.url')"
 linear issue update <identifier> --state "In Review"
 ```
 
-## Phase 11: CI & Address Feedback
+## Phase 10: CI & Address Feedback
 
 ### Wait for CI
 ```bash
@@ -299,7 +283,7 @@ gh api "repos/$REPO/pulls/$PR_NUMBER/comments" --jq '.[] | "\(.path):\(.line) \(
 ```
 Address real bugs/violations. Ignore style nits and false positives.
 
-## Phase 12: Cleanup & Report
+## Phase 11: Cleanup & Report
 
 ### Tear down Docker stack
 ```bash
