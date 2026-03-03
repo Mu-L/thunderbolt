@@ -7,9 +7,11 @@ Bootstrap the Thunderbolt dev environment. Accepts an optional argument via $ARG
   2. `make setup` — install frontend + backend deps
   3. `make docker-up` — start docker containers
   4. `make docker-status` — confirm containers are healthy
+  5. `make db-wait` — wait for database to be ready
+  6. `make db-migrate` — run database migrations
 
 - **`all`:** Run the standard bootstrap above, then also:
-  5. `make run` — start backend (:8000) and frontend (:5173) dev servers
+  7. `make run` — start backend (:8000) and frontend (:5173) dev servers
 
 - **Matches `THU-\d+`** (Linear ticket): Create a worktree for the ticket branch first using `/thunderin <id>`, then run the standard bootstrap inside that worktree.
 
