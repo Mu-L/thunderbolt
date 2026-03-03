@@ -1,10 +1,11 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
+import { homedir } from 'os'
 import { execSync, spawn } from 'child_process'
 import type { DaemonState } from './types'
 import { PRIORITY_LABELS } from './assess'
 
-const STATE_DIR = join(process.env.HOME ?? '~', '.claude', 'thunderbot')
+const STATE_DIR = join(homedir(), '.claude', 'thunderbot')
 const STATE_FILE = join(STATE_DIR, 'daemon.state.json')
 const PID_FILE = join(STATE_DIR, 'daemon.pid')
 const LOG_FILE = join(STATE_DIR, 'daemon.log')
@@ -36,14 +37,16 @@ const loadState = (): DaemonState => {
 }
 
 const saveState = (state: DaemonState) => {
-  // Cap history arrays to prevent unbounded growth
-  if (state.completedTasks.length > MAX_HISTORY_SIZE) {
-    state.completedTasks = state.completedTasks.slice(-MAX_HISTORY_SIZE)
+  // Write a copy with capped arrays so in-memory state isn't mutated if the write fails
+  const toWrite: DaemonState = {
+    ...state,
+    completedTasks: state.completedTasks.length > MAX_HISTORY_SIZE ? state.completedTasks.slice(-MAX_HISTORY_SIZE) : state.completedTasks,
+    skippedTasks: state.skippedTasks.length > MAX_HISTORY_SIZE ? state.skippedTasks.slice(-MAX_HISTORY_SIZE) : state.skippedTasks,
   }
-  if (state.skippedTasks.length > MAX_HISTORY_SIZE) {
-    state.skippedTasks = state.skippedTasks.slice(-MAX_HISTORY_SIZE)
-  }
-  writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
+  writeFileSync(STATE_FILE, JSON.stringify(toWrite, null, 2))
+  // Only truncate in-memory state after a successful write
+  state.completedTasks = toWrite.completedTasks
+  state.skippedTasks = toWrite.skippedTasks
 }
 
 const writePid = () => {
@@ -156,7 +159,7 @@ const pollAndWork = async (state: DaemonState) => {
   state.lastPollAt = new Date().toISOString()
   saveState(state)
 
-  const { stdout, exitCode } = await runCommand('linear', ['issue', 'list', '--team', 'THU', '--state', 'unstarted', '--sort', 'priority'])
+  const { stdout, exitCode } = await runCommand('linear', ['issue', 'list', '--team', 'THU', '--state', 'unstarted', '--all-assignees', '--sort', 'priority'])
   if (exitCode !== 0) {
     log('Failed to fetch issues from Linear')
     return
@@ -228,6 +231,15 @@ const startDaemon = async () => {
   writePid()
   log('Daemon started')
 
+  const state = loadState()
+
+  // Re-queue any tasks left active from a previous crash
+  if (state.activeTasks.length > 0) {
+    log(`Clearing ${state.activeTasks.length} stale active task(s) from previous run`)
+    state.activeTasks = []
+    saveState(state)
+  }
+
   const shutdown = () => {
     log('Daemon shutting down')
     clearPid()
@@ -236,10 +248,12 @@ const startDaemon = async () => {
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)
 
-  const state = loadState()
-
   const poll = async () => {
-    await pollAndWork(state)
+    try {
+      await pollAndWork(state)
+    } catch (err) {
+      log(`Poll error: ${err instanceof Error ? err.message : String(err)}`)
+    }
     setTimeout(poll, POLL_INTERVAL_MS)
   }
   await poll()

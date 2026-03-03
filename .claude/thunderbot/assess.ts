@@ -134,8 +134,8 @@ export const scoreTask = (issue: LinearIssue): number => {
   // Prefer medium complexity
   const complexityScores: Record<TaskAssessment['complexity'], number> = {
     trivial: 5,
-    small: 15,
-    medium: 10,
+    small: 10,
+    medium: 15,
     large: 0,
     'too-large': -20,
   }
@@ -161,5 +161,6 @@ if (import.meta.main) {
   const input = await readInput()
   const issue: LinearIssue = JSON.parse(input)
   const assessment = assessTask(issue)
-  console.log(JSON.stringify(assessment, null, 2))
+  const score = scoreTask(issue)
+  console.log(JSON.stringify({ ...assessment, score }, null, 2))
 }
