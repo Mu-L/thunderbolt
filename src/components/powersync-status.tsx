@@ -6,6 +6,29 @@ import { Cloud, CloudOff, Loader2 } from 'lucide-react'
 import { SyncEnableWarningDialog } from '@/components/sync-enable-warning-dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
+import { useEffect, useState } from 'react'
+
+const elapsedTimeRefreshMs = 30_000
+
+/**
+ * Formats a lastSyncedAt date into a human-readable elapsed time string.
+ * Returns null if lastSyncedAt is not available.
+ */
+export const formatSyncElapsed = (lastSyncedAt: Date | null, now: number): string | null => {
+  if (!lastSyncedAt) {
+    return null
+  }
+  const seconds = Math.floor((now - lastSyncedAt.getTime()) / 1000)
+  if (seconds < 60) {
+    return 'Just synced'
+  }
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) {
+    return `Synced ${minutes}m ago`
+  }
+  const hours = Math.floor(minutes / 60)
+  return `Synced ${hours}h ago`
+}
 
 /**
  * PowerSync status indicator that shows sync state in the header.
@@ -20,6 +43,18 @@ export const PowerSyncStatus = () => {
   const { syncEnabled, syncEnableWarningOpen, setSyncEnableWarningOpen, handleSyncToggle, handleConfirmEnableSync } =
     useSyncEnabledToggle()
 
+  // Periodic tick to keep elapsed time display fresh
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), elapsedTimeRefreshMs)
+    return () => clearInterval(id)
+  }, [])
+
+  // Reset now whenever lastSyncedAt changes so display updates immediately
+  useEffect(() => {
+    setNow(Date.now())
+  }, [lastSyncedAt])
+
   const isConnected = connectionStatus === 'connected'
   const isConnecting = connectionStatus === 'connecting'
 
@@ -33,17 +68,8 @@ export const PowerSyncStatus = () => {
     if (!isConnected) {
       return 'Offline'
     }
-    if (hasSynced && lastSyncedAt) {
-      const seconds = Math.floor((Date.now() - lastSyncedAt.getTime()) / 1000)
-      if (seconds < 60) {
-        return 'Just synced'
-      }
-      const minutes = Math.floor(seconds / 60)
-      if (minutes < 60) {
-        return `Synced ${minutes}m ago`
-      }
-      const hours = Math.floor(minutes / 60)
-      return `Synced ${hours}h ago`
+    if (hasSynced) {
+      return formatSyncElapsed(lastSyncedAt, now) ?? 'Connected'
     }
     return 'Connected'
   }

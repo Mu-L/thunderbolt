@@ -1,6 +1,6 @@
 import { getPowerSyncInstance } from '@/db/powersync'
 import type { SyncStatus } from '@powersync/web'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export type PowerSyncConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'not-configured'
 
@@ -20,8 +20,28 @@ export type PowerSyncStatusInfo = {
 }
 
 /**
+ * Returns the more recent of two dates, or the one that is non-null.
+ * PowerSync's lastSyncedAt only updates on full checkpoint syncs, so we also
+ * track when downloads complete to provide a more responsive timestamp.
+ */
+export const mostRecentDate = (a: Date | null, b: Date | null): Date | null => {
+  if (!a) {
+    return b
+  }
+  if (!b) {
+    return a
+  }
+  return a.getTime() >= b.getTime() ? a : b
+}
+
+/**
  * Hook that provides PowerSync connection and sync status.
  * Returns status info that can be used to show sync indicators in the UI.
+ *
+ * Tracks its own lastSyncedAt timestamp by detecting when downloads complete
+ * (downloading transitions from true → false), since PowerSync's native
+ * lastSyncedAt only updates on full checkpoint syncs and can appear stale
+ * during incremental sync activity.
  *
  * @example
  * ```tsx
@@ -42,6 +62,9 @@ export const usePowerSyncStatus = (): PowerSyncStatusInfo => {
     lastSyncedAt: null,
   })
 
+  const wasDownloadingRef = useRef(false)
+  const localLastSyncedRef = useRef<Date | null>(null)
+
   useEffect(() => {
     const powerSync = getPowerSyncInstance()
 
@@ -60,6 +83,7 @@ export const usePowerSyncStatus = (): PowerSyncStatusInfo => {
     const updateStatus = (syncStatus: SyncStatus) => {
       const connected = syncStatus.connected
       const connecting = syncStatus.connecting
+      const isDownloading = syncStatus.dataFlowStatus?.downloading ?? false
 
       let connectionStatus: PowerSyncConnectionStatus = 'disconnected'
       if (connected) {
@@ -68,13 +92,22 @@ export const usePowerSyncStatus = (): PowerSyncStatusInfo => {
         connectionStatus = 'connecting'
       }
 
+      // Track when a download completes (was downloading → no longer downloading)
+      if (wasDownloadingRef.current && !isDownloading) {
+        localLastSyncedRef.current = new Date()
+      }
+      wasDownloadingRef.current = isDownloading
+
+      const powerSyncLastSynced = syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt) : null
+      const lastSyncedAt = mostRecentDate(powerSyncLastSynced, localLastSyncedRef.current)
+
       setStatus({
         isPowerSync: true,
         connectionStatus,
         isUploading: syncStatus.dataFlowStatus?.uploading ?? false,
-        isDownloading: syncStatus.dataFlowStatus?.downloading ?? false,
+        isDownloading,
         hasSynced: syncStatus.hasSynced ?? false,
-        lastSyncedAt: syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt) : null,
+        lastSyncedAt,
       })
     }
 
