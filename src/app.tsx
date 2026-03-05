@@ -45,6 +45,7 @@ import SettingsLayout from './settings/layout'
 import type { InitData } from './types'
 import { useSettings } from './hooks/use-settings'
 import { isPrPreview } from './lib/platform'
+import { ResetDialog } from './components/reset-dialog'
 
 const queryClient = new QueryClient()
 
@@ -172,6 +173,7 @@ export const App = () => {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="ui_theme">
+      <ResetDialog />
       {renderAppContent()}
     </ThemeProvider>
   )

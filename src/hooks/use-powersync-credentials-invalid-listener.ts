@@ -1,3 +1,4 @@
+import { triggerResetDialog, type ResetReason } from '@/components/reset-dialog'
 import { getDevice } from '@/dal'
 import { setSyncEnabled } from '@/db/powersync'
 import { powersyncCredentialsInvalid } from '@/db/powersync/connector'
@@ -7,11 +8,17 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
 /**
- * Full app reset when credentials are no longer valid: disable PowerSync sync, clear
- * localStorage (token + device id), reset app directory (DB), then reload. Leaves the user
+ * Full app reset when credentials are no longer valid: show reset dialog, disable PowerSync sync,
+ * clear localStorage (token + device id), reset app directory (DB), then reload. Leaves the user
  * in a clean signed-out state so they can sign in again or use the app offline.
  */
-const performCredentialsInvalidReset = async (): Promise<void> => {
+const performCredentialsInvalidReset = async (reason: ResetReason): Promise<void> => {
+  // Show the reset dialog to the user
+  triggerResetDialog(reason)
+
+  // Give the user time to see the dialog before performing the reset
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+
   try {
     await setSyncEnabled(false)
     await resetAppDir()
@@ -64,7 +71,8 @@ export const usePowerSyncCredentialsInvalidListener = (): void => {
         return
       }
       hasTriggeredRef.current = true
-      void performCredentialsInvalidReset()
+      // 410 = account deleted, 403/409 = device revoked
+      void performCredentialsInvalidReset('account-deleted')
     }
 
     window.addEventListener(powersyncCredentialsInvalid, handler)
@@ -92,6 +100,8 @@ export const usePowerSyncCredentialsInvalidListener = (): void => {
       return
     }
     hasTriggeredRef.current = true
-    void performCredentialsInvalidReset()
+    // Device revoked if revokedAt is set, account deleted if device row is missing
+    const reason: ResetReason = revoked ? 'device-revoked' : 'account-deleted'
+    void performCredentialsInvalidReset(reason)
   }, [isFetched, deviceId, device])
 }
