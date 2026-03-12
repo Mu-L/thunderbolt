@@ -165,6 +165,7 @@ body {
 
   header {
     transform: translateY(var(--vv-top, 0px));
+    transition: transform 0.25s ease-out;
     position: relative;
     z-index: 50;
     background-color: var(--color-background);
