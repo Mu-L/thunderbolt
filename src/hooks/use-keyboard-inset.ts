@@ -19,10 +19,14 @@ import { useLayoutEffect } from 'react'
 export const useKeyboardInset = (): void => {
   useLayoutEffect(() => {
     const vv = window.visualViewport
-    if (!vv) return
+    if (!vv) {
+      return
+    }
 
     const root = document.getElementById('root')
-    if (!root) return
+    if (!root) {
+      return
+    }
 
     // Override focus to prevent Safari's native scroll-to-input behavior.
     // This is the key to eliminating the flash — without it, Safari scrolls
@@ -81,7 +85,9 @@ export const useKeyboardInset = (): void => {
       document.removeEventListener('focusout', startPolling)
       vv.removeEventListener('resize', startPolling)
       vv.removeEventListener('scroll', startPolling)
-      if (rafId) cancelAnimationFrame(rafId)
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
       root.style.top = ''
       root.style.height = ''
     }
