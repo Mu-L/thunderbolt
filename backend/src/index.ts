@@ -9,6 +9,7 @@ import { createErrorHandlingMiddleware } from '@/middleware/error-handling'
 import { createHttpLoggingMiddleware } from '@/middleware/http-logging'
 import { createWaitlistAuthMiddleware } from '@/middleware/waitlist-auth'
 import { createPostHogRoutes } from '@/posthog/routes'
+import { createHaystackRoutes } from '@/haystack/routes'
 import { createProToolsRoutes } from '@/pro/routes'
 import { createWaitlistRoutes } from '@/waitlist/routes'
 import { createAccountRoutes } from '@/api/account'
@@ -80,6 +81,7 @@ export const createApp = async (deps?: AppDeps) => {
       .use(createGoogleAuthRoutes(fetchFn))
       .use(createMicrosoftAuthRoutes(fetchFn))
       .use(createProToolsRoutes(fetchFn))
+      .use(createHaystackRoutes(fetchFn))
       .use(createInferenceRoutes())
       .use(createPostHogRoutes(fetchFn))
       .use(createWaitlistRoutes({ database, auth, emailService: deps?.waitlistEmailService }))

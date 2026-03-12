@@ -1,4 +1,5 @@
 import { chatPrompt } from '@/ai/prompts/modes/chat'
+import { documentSearchPrompt } from '@/ai/prompts/modes/document-search'
 import { researchPrompt } from '@/ai/prompts/modes/research'
 import { searchPrompt } from '@/ai/prompts/modes/search'
 import { hashValues } from '@/lib/utils'
@@ -53,7 +54,25 @@ export const defaultModeResearch: Mode = {
   userId: null,
 }
 
+export const defaultModeDocSearch: Mode = {
+  id: 'mode-document-search',
+  name: 'document-search',
+  label: 'Document Search',
+  icon: 'file-search',
+  systemPrompt: documentSearchPrompt,
+  isDefault: 0,
+  order: 3,
+  deletedAt: null,
+  defaultHash: null,
+  userId: null,
+}
+
 /**
  * Array of all default modes for iteration
  */
-export const defaultModes: ReadonlyArray<Mode> = [defaultModeChat, defaultModeSearch, defaultModeResearch] as const
+export const defaultModes: ReadonlyArray<Mode> = [
+  defaultModeChat,
+  defaultModeSearch,
+  defaultModeResearch,
+  defaultModeDocSearch,
+] as const

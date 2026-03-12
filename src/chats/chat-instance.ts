@@ -6,6 +6,9 @@ import { DefaultChatTransport } from 'ai'
 import { v7 as uuidv7 } from 'uuid'
 import { useChatStore } from './chat-store'
 
+// Map of chat session ID -> Haystack session ID
+const haystackSessionIds = new Map<string, string>()
+
 export const maxRetries = 3
 
 /**
@@ -177,6 +180,63 @@ export const createChatInstance = (
       throw new Error(
         `This model is not available for ${chatThread.isEncrypted === 1 ? 'encrypted' : 'unencrypted'} conversations.`,
       )
+    }
+
+    // Document Search mode: bypass AI SDK streaming and call Haystack directly
+    if (session.selectedMode.name === 'document-search') {
+      const query = message && 'text' in message ? message.text : ''
+      if (!query) {
+        throw new Error('Document Search requires a text message')
+      }
+
+      trackEvent('chat_send_prompt', {
+        model: selectedModel,
+        length: query.length,
+        prompt_number: instance.messages.length + 1,
+      })
+
+      const { sendHaystackMessage } = await import('./haystack-chat')
+      const ky = (await import('ky')).default
+
+      const haystackSessionId = haystackSessionIds.get(id) ?? null
+
+      const result = await sendHaystackMessage({
+        query,
+        sessionId: haystackSessionId,
+        httpClient: ky.create({ prefixUrl: '' }),
+      })
+
+      // Store session ID for future messages in this thread
+      if (!haystackSessionId) {
+        haystackSessionIds.set(id, result.sessionId)
+      }
+
+      const userMessage: ThunderboltUIMessage = {
+        id: uuidv7(),
+        role: 'user' as const,
+        parts: [{ type: 'text' as const, text: query }],
+        metadata: { modelId: selectedModel.id },
+      }
+
+      const fullContent = result.widgets ? `${result.answerText}\n\n${result.widgets}` : result.answerText
+
+      const assistantMessage: ThunderboltUIMessage = {
+        id: uuidv7(),
+        role: 'assistant' as const,
+        parts: [{ type: 'text' as const, text: fullContent }],
+        metadata: { modelId: selectedModel.id },
+      }
+
+      instance.messages = [...instance.messages, userMessage, assistantMessage]
+      await saveMessages({ id, messages: [userMessage, assistantMessage] })
+
+      trackEvent('chat_receive_reply', {
+        model: selectedModel,
+        length: fullContent.length,
+        reply_number: instance.messages.length,
+      })
+
+      return
     }
 
     trackEvent('chat_send_prompt', {
