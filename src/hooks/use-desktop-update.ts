@@ -113,9 +113,12 @@ export const useDesktopUpdate = (): DesktopUpdateState => {
 
   const restartApp = useCallback(async () => {
     try {
-      // Disconnect PowerSync (without clearing data) before relaunching so
-      // the new process doesn't compete for locks/connections (see THU-341).
-      await getPowerSyncInstance()?.disconnect()
+      // Best-effort disconnect — don't block the relaunch if PowerSync fails
+      try {
+        await getPowerSyncInstance()?.disconnect()
+      } catch {
+        /* proceed anyway */
+      }
       // Signal the new process to reset navigation (WebView may restore stale route)
       localStorage.setItem('thunderbolt_post_update', '1')
       await relaunch()
