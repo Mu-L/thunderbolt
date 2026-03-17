@@ -13,6 +13,8 @@ import { useChatStore } from './chat-store'
 
 // Map of chat session ID -> Haystack session ID
 const haystackSessionIds = new Map<string, string>()
+// Map of chat session ID -> in-flight session creation promise
+const pendingSessionCreations = new Map<string, Promise<string>>()
 
 export const maxRetries = 3
 
@@ -24,31 +26,46 @@ const getRetryDelay = (attempt: number) => 2000 * attempt * (0.5 + Math.random()
 
 /**
  * Ensure a Haystack session exists for the given chat ID, creating one if needed.
+ * Uses a pending promise map to prevent race conditions when multiple calls occur
+ * before the first session creation completes.
  */
 const ensureHaystackSession = async (chatId: string): Promise<string> => {
   const existing = haystackSessionIds.get(chatId)
   if (existing) return existing
 
-  const db = getDb()
-  const { cloudUrl } = await getSettings(db, { cloud_url: 'http://localhost:8000/v1' })
+  const pending = pendingSessionCreations.get(chatId)
+  if (pending) return pending
 
-  const response = await fetch(`${cloudUrl}/haystack/sessions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  })
+  const creationPromise = (async () => {
+    const db = getDb()
+    const { cloudUrl } = await getSettings(db, { cloud_url: 'http://localhost:8000/v1' })
 
-  if (!response.ok) {
-    throw new Error('Failed to create Haystack session')
+    const response = await fetch(`${cloudUrl}/haystack/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to create Haystack session')
+    }
+
+    const data = (await response.json()) as { data: { searchSessionId: string }; success: boolean }
+    if (!data.success) {
+      throw new Error('Failed to create Haystack session')
+    }
+
+    return data.data.searchSessionId
+  })()
+
+  pendingSessionCreations.set(chatId, creationPromise)
+
+  try {
+    const sessionId = await creationPromise
+    haystackSessionIds.set(chatId, sessionId)
+    return sessionId
+  } finally {
+    pendingSessionCreations.delete(chatId)
   }
-
-  const data = (await response.json()) as { data: { searchSessionId: string }; success: boolean }
-  if (!data.success) {
-    throw new Error('Failed to create Haystack session')
-  }
-
-  const sessionId = data.data.searchSessionId
-  haystackSessionIds.set(chatId, sessionId)
-  return sessionId
 }
 
 export const createChatInstance = (
