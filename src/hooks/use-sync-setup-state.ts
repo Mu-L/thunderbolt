@@ -6,6 +6,7 @@ type SyncSetupStep =
   | 'create-passphrase'
   | 'create-show-key'
   | 'import-passphrase'
+  | 'import-recovery-key'
   | 'passkey-setup'
   | 'success'
 
@@ -19,7 +20,7 @@ type SyncSetupState = {
 }
 
 type SyncSetupAction =
-  | { type: 'SELECT_METHOD'; payload: 'create' | 'import-passphrase' }
+  | { type: 'SELECT_METHOD'; payload: 'create' | 'import-passphrase' | 'import-recovery-key' }
   | { type: 'SET_PASSPHRASE'; payload: string }
   | { type: 'SHOW_KEY'; payload: string }
   | { type: 'CONFIRM_KEY_SAVED'; payload: boolean }
@@ -44,6 +45,7 @@ const backStepMap: Partial<Record<SyncSetupStep, SyncSetupStep>> = {
   'create-passphrase': 'choose-method',
   'create-show-key': 'create-passphrase',
   'import-passphrase': 'choose-method',
+  'import-recovery-key': 'choose-method',
 }
 
 const syncSetupReducer = (state: SyncSetupState, action: SyncSetupAction): SyncSetupState => {
@@ -52,6 +54,7 @@ const syncSetupReducer = (state: SyncSetupState, action: SyncSetupAction): SyncS
       const stepMap = {
         create: 'create-passphrase',
         'import-passphrase': 'import-passphrase',
+        'import-recovery-key': 'import-recovery-key',
       } as const
       return { ...state, step: stepMap[action.payload] }
     }
@@ -121,7 +124,8 @@ export const useSyncSetupState = () => {
   }
 
   const actions = {
-    selectMethod: (method: 'create' | 'import-passphrase') => dispatch({ type: 'SELECT_METHOD', payload: method }),
+    selectMethod: (method: 'create' | 'import-passphrase' | 'import-recovery-key') =>
+      dispatch({ type: 'SELECT_METHOD', payload: method }),
 
     setPassphrase: (passphrase: string) => dispatch({ type: 'SET_PASSPHRASE', payload: passphrase }),
 
@@ -143,6 +147,15 @@ export const useSyncSetupState = () => {
     },
 
     startVerification: () => {
+      dispatch({ type: 'SET_VERIFYING', payload: true })
+      clearPendingTimeout()
+      timeoutRef.current = setTimeout(() => {
+        setEncryptionKeyState('KEY_PRESENT')
+        dispatch({ type: 'VERIFY_SUCCESS' })
+      }, 1500)
+    },
+
+    startRecoveryKeyVerification: () => {
       dispatch({ type: 'SET_VERIFYING', payload: true })
       clearPendingTimeout()
       timeoutRef.current = setTimeout(() => {
