@@ -56,9 +56,7 @@ export const useThrottledCallback = <T extends (...args: any[]) => any>(
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   // Keep callback ref up to date
-  useEffect(() => {
-    callbackRef.current = callback
-  }, [callback])
+  callbackRef.current = callback
 
   // Cleanup on unmount
   useEffect(() => {

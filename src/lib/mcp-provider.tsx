@@ -32,9 +32,7 @@ export const MCPProvider = ({ children }: { children: ReactNode }) => {
   const serversRef = useRef<MCPServerConnection[]>([])
 
   // Keep ref in sync with state
-  useEffect(() => {
-    serversRef.current = servers
-  }, [servers])
+  serversRef.current = servers
 
   const createClient = async (url: string): Promise<MCPClient> => {
     // Check if we need to use Tauri fetch for external URLs
