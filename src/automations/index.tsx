@@ -36,7 +36,7 @@ import { useQuery } from '@powersync/tanstack-react-query'
 import { toCompilableQuery } from '@powersync/drizzle-driver'
 import { eq } from 'drizzle-orm'
 import { Pen, Play, Plus, Search, Trash2 } from 'lucide-react'
-import { memo, useEffect, useState } from 'react'
+import { memo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import AutomationFormModal from './automation-form-modal'
 
@@ -254,12 +254,7 @@ const PromptCard = memo(({ prompt, triggersEnabled, onRun, onEdit, onDelete, onR
 
   // For now, use the first trigger's enabled state, or true if no triggers
   const primaryTrigger = triggers[0]
-  const [isEnabled, setIsEnabled] = useState(primaryTrigger?.isEnabled === 1 || !primaryTrigger)
-
-  // Update local state when trigger data changes
-  useEffect(() => {
-    setIsEnabled(primaryTrigger?.isEnabled === 1 || !primaryTrigger)
-  }, [primaryTrigger])
+  const isEnabled = primaryTrigger?.isEnabled === 1 || !primaryTrigger
 
   const toggleTriggerMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -273,7 +268,6 @@ const PromptCard = memo(({ prompt, triggersEnabled, onRun, onEdit, onDelete, onR
   })
 
   const handleToggleChange = (enabled: boolean) => {
-    setIsEnabled(enabled)
     if (primaryTrigger) {
       toggleTriggerMutation.mutate(enabled)
     }
