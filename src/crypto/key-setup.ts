@@ -27,7 +27,7 @@ const apiHeaders = (): Record<string, string> => {
 /** Upload canary + salt to server. Best-effort — failures don't block key creation. */
 const uploadEncryptionSetup = async (canary: KeyCanary, salt?: Uint8Array): Promise<void> => {
   try {
-    await fetch(`${getBackendUrl()}/v1/encryption/setup`, {
+    await fetch(`${getBackendUrl()}/encryption/setup`, {
       method: 'POST',
       headers: apiHeaders(),
       body: JSON.stringify({ canary, salt: salt ? toBase64(salt) : undefined }),
@@ -40,7 +40,7 @@ const uploadEncryptionSetup = async (canary: KeyCanary, salt?: Uint8Array): Prom
 /** Fetch canary + salt from server. Returns null if unavailable. */
 const fetchEncryptionSetup = async (): Promise<{ canary: KeyCanary; salt: string | null } | null> => {
   try {
-    const response = await fetch(`${getBackendUrl()}/v1/encryption/setup`, {
+    const response = await fetch(`${getBackendUrl()}/encryption/setup`, {
       headers: apiHeaders(),
     })
     if (!response.ok) {
