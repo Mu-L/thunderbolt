@@ -489,6 +489,7 @@ export default function TasksPage() {
           {/* Search - always visible to maintain focus and avoid flicker */}
           <SearchInput
             placeholder="Search tasks..."
+            inputSize="lg"
             className="rounded-xl"
             debouncedOnChange={(value) => {
               setDebouncedSearchQuery(value)
