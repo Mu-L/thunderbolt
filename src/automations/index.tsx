@@ -124,6 +124,7 @@ export default function AutomationsPage() {
           {/* Search */}
           <SearchInput
             placeholder="Search automations..."
+            inputSize="lg"
             debouncedOnChange={(value) => setDebouncedSearchQuery(value)}
             className="rounded-xl"
           />
