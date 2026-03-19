@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/auth-context'
 import { usePowerSyncStatus } from '@/hooks/use-powersync-status'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useSyncEnabledToggle } from '@/hooks/use-sync-enabled-toggle'
 import { cn } from '@/lib/utils'
 import { Cloud, CloudOff, Loader2 } from 'lucide-react'
@@ -21,6 +22,7 @@ export const PowerSyncStatus = () => {
   const isAuthenticated = !!session?.user
   const { openSignInModal } = useSignInModal()
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const { isMobile } = useIsMobile()
 
   const { connectionStatus, hasSynced, lastSyncedAt } = usePowerSyncStatus()
   const { syncEnabled, syncEnableWarningOpen, setSyncEnableWarningOpen, handleSyncToggle, handleConfirmEnableSync } =
@@ -72,7 +74,7 @@ export const PowerSyncStatus = () => {
 
   return (
     <>
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={isMobile}>
         <Tooltip open={popoverOpen ? false : undefined}>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
@@ -81,6 +83,8 @@ export const PowerSyncStatus = () => {
                 className={cn(
                   'flex items-center justify-center size-[var(--touch-height-sm)] rounded-full transition-colors',
                   'hover:bg-secondary/50 cursor-pointer select-none outline-none',
+                  popoverOpen && 'bg-secondary',
+                  isMobile && popoverOpen && 'relative z-50',
                 )}
                 aria-label="Sync status"
                 aria-haspopup="dialog"
@@ -91,7 +95,22 @@ export const PowerSyncStatus = () => {
           </TooltipTrigger>
           <TooltipContent side="bottom">{getStatusText()}</TooltipContent>
         </Tooltip>
-        <PopoverContent align="end" side="bottom" sideOffset={5} className="rounded-2xl">
+
+        {isMobile && popoverOpen && (
+          <div
+            className="fixed inset-0 z-40 backdrop-blur-sm bg-white/30 dark:bg-black/30"
+            onClick={() => setPopoverOpen(false)}
+          />
+        )}
+
+        <PopoverContent
+          align={isMobile ? 'center' : 'end'}
+          side="bottom"
+          sideOffset={5}
+          collisionPadding={16}
+          className={cn('rounded-2xl shadow-lg duration-100', isMobile && popoverOpen && 'z-50')}
+          style={{ width: isMobile ? 'calc(100vw - 2rem)' : undefined }}
+        >
           <div className="flex flex-col gap-3">
             <div>
               <div className="flex flex-row items-center justify-between mb-2">
