@@ -1,4 +1,4 @@
-import { maxRetries } from '@/chats/chat-instance'
+import { maxRetries } from '@/chats/use-acp-chat'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { ErrorMessage } from './error-message'
 

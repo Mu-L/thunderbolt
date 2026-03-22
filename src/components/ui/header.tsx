@@ -23,7 +23,7 @@ export const Header = () => {
 
       return {
         agents: state.agents,
-        selectedAgent: session?.selectedAgent,
+        selectedAgent: session?.agentConfig,
         setSelectedAgent: state.setSelectedAgent,
         chatThreadId: session?.id,
       }

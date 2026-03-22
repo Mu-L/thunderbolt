@@ -1,11 +1,11 @@
 import { useCurrentChatSession, useChatStore } from '@/chats/chat-store'
+import { useAcpChatActions } from '@/chats/use-acp-chat'
 import { useHaptics } from '@/hooks/use-haptics'
 import { useContextTracking as useContextTracking_default } from '@/hooks/use-context-tracking'
 import { useIsMobile as useIsMobile_default } from '@/hooks/use-mobile'
 import { isMobile as isPlatformMobile } from '@/lib/platform'
 import { trackEvent as trackEvent_default } from '@/lib/posthog'
-import { type Model } from '@/types'
-import { useChat as useChat_default } from '@ai-sdk/react'
+import { type Model, type SaveMessagesFunction } from '@/types'
 import { useDraftInput } from '@/hooks/use-draft-input'
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react'
 import { useNavigate as useNavigate_default } from 'react-router'
@@ -21,32 +21,55 @@ export type ChatPromptInputRef = {
 
 type ChatPromptInputProps = {
   useNavigate?: typeof useNavigate_default
-  useChat?: typeof useChat_default
   useContextTracking?: typeof useContextTracking_default
   trackEvent?: typeof trackEvent_default
   useIsMobile?: typeof useIsMobile_default
+  saveMessages?: SaveMessagesFunction
 }
 
 export const ChatPromptInput = forwardRef<ChatPromptInputRef, ChatPromptInputProps>(
   (
     {
       useNavigate = useNavigate_default,
-      useChat = useChat_default,
       useContextTracking = useContextTracking_default,
       trackEvent = trackEvent_default,
       useIsMobile = useIsMobile_default,
+      saveMessages: saveMessagesProp,
     },
     ref,
   ) => {
     const navigate = useNavigate()
-    const modes = useChatStore((state) => state.modes)
     const setSelectedMode = useChatStore((state) => state.setSelectedMode)
 
     const { isMobile } = useIsMobile()
 
-    const { chatInstance, chatThread, id: chatThreadId, selectedMode, selectedModel } = useCurrentChatSession()
+    const {
+      chatThread,
+      id: chatThreadId,
+      selectedMode,
+      selectedModel,
+      messages,
+      status,
+      availableModes,
+    } = useCurrentChatSession()
 
-    const { messages, status, stop, sendMessage } = useChat({ chat: chatInstance })
+    // Convert ACP SessionMode[] to Mode-like objects for the mode selector
+    const modes = availableModes.map((m) => ({
+      id: m.id,
+      name: m.id,
+      label: m.name,
+      icon: selectedMode.id === m.id ? selectedMode.icon : 'message-square',
+      systemPrompt: null,
+      isDefault: 0,
+      order: 0,
+      deletedAt: null,
+      defaultHash: null,
+      userId: null,
+    }))
+
+    // Use a dummy saveMessages if not provided (it will be provided by the parent)
+    const dummySave: SaveMessagesFunction = async () => {}
+    const { sendMessage, stop } = useAcpChatActions(saveMessagesProp ?? dummySave)
 
     const isStreaming = status === 'streaming'
 

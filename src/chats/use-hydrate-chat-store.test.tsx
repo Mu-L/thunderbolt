@@ -231,10 +231,8 @@ describe('useHydrateChatStore', () => {
       expect(session?.selectedModel).not.toBeNull()
       // getDefaultModelForThread returns the system model when no messages exist
       expect(session?.selectedModel?.isSystem).toBe(1)
-      expect(storeState.models).toBeDefined()
-      expect(storeState.models.length).toBeGreaterThan(0)
-      expect(session?.chatInstance).toBeDefined()
-      expect(session?.chatInstance?.id).toBe(threadId)
+      expect(session?.acpClient).toBeDefined()
+      expect(session?.messages).toBeDefined()
       expect(storeState.mcpClients).toBeDefined()
       expect(session?.triggerData).toBeDefined()
     })
@@ -292,9 +290,9 @@ describe('useHydrateChatStore', () => {
       })
 
       const session = getCurrentSession()
-      expect(session?.chatInstance).toBeDefined()
-      expect(session?.chatInstance?.messages).toBeDefined()
-      expect(session?.chatInstance?.messages.length).toBe(2)
+      expect(session?.acpClient).toBeDefined()
+      expect(session?.messages).toBeDefined()
+      expect(session?.messages.length).toBe(2)
     })
 
     it('should hydrate store with empty messages when thread has no messages', async () => {
@@ -310,9 +308,9 @@ describe('useHydrateChatStore', () => {
       })
 
       const session = getCurrentSession()
-      expect(session?.chatInstance).toBeDefined()
-      expect(session?.chatInstance?.messages).toBeDefined()
-      expect(session?.chatInstance?.messages.length).toBe(0)
+      expect(session?.acpClient).toBeDefined()
+      expect(session?.messages).toBeDefined()
+      expect(session?.messages.length).toBe(0)
     })
   })
 

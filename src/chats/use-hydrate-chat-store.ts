@@ -22,7 +22,7 @@ import type { SaveMessagesFunction, ThunderboltUIMessage } from '@/types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useChatStore } from './chat-store'
-import { createChatInstance } from './chat-instance'
+import { createAcpSession } from './create-acp-session'
 
 type UseHydrateChatStoreParams = {
   id: string
@@ -83,8 +83,7 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
   }
 
   const hydrateChatStore = async () => {
-    const { createSession, sessions, setCurrentSessionId, setAgents, setMcpClients, setModes, setModels } =
-      useChatStore.getState()
+    const { createSession, sessions, setCurrentSessionId, setAgents, setMcpClients } = useChatStore.getState()
 
     // Check if this ID belongs to a deleted chat - redirect to 404 if so
     const isDeleted = await isChatThreadDeleted(db, id)
@@ -93,20 +92,13 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
       return
     }
 
-    // If the session already exists, set the current session id and update the mcp clients and models
+    // If the session already exists, set the current session id and update the mcp clients
     if (sessions.has(id)) {
       setCurrentSessionId(id)
 
-      const [modes, models, agents, mcpClients] = await Promise.all([
-        getAllModes(db),
-        getAvailableModels(db),
-        getAvailableAgents(db),
-        getEnabledClients(),
-      ])
+      const [agents, mcpClients] = await Promise.all([getAvailableAgents(db), getEnabledClients()])
 
       setMcpClients(mcpClients)
-      setModes(modes)
-      setModels(models)
       setAgents(agents)
 
       setIsReady(true)
@@ -150,29 +142,47 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
       return
     }
 
-    const chatInstance = createChatInstance(
-      id,
-      initialMessages.map(convertDbChatMessageToUIMessage) as ThunderboltUIMessage[],
-      saveMessages,
-    )
+    const initialUIMessages = initialMessages.map(convertDbChatMessageToUIMessage) as ThunderboltUIMessage[]
+
+    // Create ACP session for this chat
+    const { acpClient, sessionState } = await createAcpSession({
+      chatId: id,
+      agent: selectedAgent,
+      modes,
+      models,
+      selectedModeId: selectedMode.id,
+      selectedModelId: defaultModel.id,
+      mcpClients,
+    })
 
     createSession({
-      chatInstance,
-      chatThread,
       id,
-      retryCount: 0,
-      retriesExhausted: false,
-      selectedAgent,
+      chatThread,
+      acpClient,
+      agentConfig: selectedAgent,
+
+      // ACP session state
+      availableModes: sessionState.availableModes,
+      currentModeId: sessionState.currentModeId,
+      configOptions: sessionState.configOptions,
+
+      // Message state
+      messages: initialUIMessages,
+      status: 'ready',
+      error: null,
+
+      // Backward compat
       selectedMode,
       selectedModel: defaultModel,
+
+      retryCount: 0,
+      retriesExhausted: false,
       triggerData,
     })
 
     setCurrentSessionId(id)
 
     setMcpClients(mcpClients)
-    setModes(modes)
-    setModels(models)
     setAgents(agents)
 
     setIsReady(true)
