@@ -49,7 +49,9 @@ export const getChatThread = async (db: AnyDrizzleDatabase, id: string): Promise
  */
 export const createChatThread = async (
   db: AnyDrizzleDatabase,
-  data: Pick<ChatThread, 'contextSize' | 'id' | 'title' | 'triggeredBy' | 'wasTriggeredByAutomation'>,
+  data: Pick<ChatThread, 'contextSize' | 'id' | 'title' | 'triggeredBy' | 'wasTriggeredByAutomation'> & {
+    agentId?: string | null
+  },
   model: Model,
 ): Promise<void> => {
   await db.insert(chatThreadsTable).values({ ...data, isEncrypted: model.isConfidential })
@@ -61,7 +63,7 @@ export const createChatThread = async (
 export const updateChatThread = async (
   db: AnyDrizzleDatabase,
   id: string,
-  data: Partial<Pick<ChatThread, 'contextSize' | 'modeId' | 'title' | 'triggeredBy' | 'wasTriggeredByAutomation'>>,
+  data: Partial<Pick<ChatThread, 'agentId' | 'contextSize' | 'modeId' | 'title' | 'triggeredBy' | 'wasTriggeredByAutomation'>>,
 ): Promise<void> => {
   await db.update(chatThreadsTable).set(data).where(eq(chatThreadsTable.id, id))
 }
@@ -73,6 +75,7 @@ export const getOrCreateChatThread = async (
   db: AnyDrizzleDatabase,
   id: string,
   modelId: string,
+  agentId?: string | null,
 ): Promise<ChatThread> => {
   const thread = await getChatThread(db, id)
 
@@ -93,6 +96,7 @@ export const getOrCreateChatThread = async (
       contextSize: null,
       triggeredBy: null,
       wasTriggeredByAutomation: 0,
+      agentId: agentId ?? null,
     },
     model,
   )
