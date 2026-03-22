@@ -1,3 +1,4 @@
+import type { ToolCallContent, ToolCallLocation, ToolKind } from '@agentclientprotocol/sdk'
 import type { ReasoningUIPart, TextUIPart, ToolUIPart, UIMessage } from 'ai'
 import { splitPartType } from './utils'
 
@@ -8,11 +9,25 @@ import { splitPartType } from './utils'
 export type GroupableUIPart = ReasoningUIPart | TextUIPart | ToolUIPart
 
 /**
+ * ACP-specific metadata attached to tool parts from external agents.
+ */
+export type AcpToolMetadata = {
+  kind?: ToolKind
+  content?: ToolCallContent[]
+  locations?: ToolCallLocation[]
+}
+
+/**
  * A synthetic UI part type that represents multiple consecutive reasoning/tool parts grouped together.
  * Created by `groupMessageParts` to render related reasoning + tool calls in a single group
  * for better UX (showing them as a batch rather than scattered individually).
  */
-export type ReasoningGroupItem<T = unknown> = { type: 'tool' | 'reasoning'; content: T; id: string }
+export type ReasoningGroupItem<T = unknown> = {
+  type: 'tool' | 'reasoning'
+  content: T
+  id: string
+  acpMetadata?: AcpToolMetadata
+}
 
 export type ReasoningGroupUIPart = {
   type: 'reasoning_group'
@@ -78,7 +93,13 @@ export const groupMessageParts = (parts: GroupableUIPart[]): GroupedUIPart[] => 
     if (partType === 'tool' || partType === 'reasoning') {
       if (partType === 'tool') {
         const toolPart = part as ToolUIPart
-        currentItems.push({ type: 'tool', content: toolPart, id: toolPart.toolCallId })
+        const acpMeta = (toolPart as unknown as { acpMetadata?: AcpToolMetadata }).acpMetadata
+        currentItems.push({
+          type: 'tool',
+          content: toolPart,
+          id: toolPart.toolCallId,
+          ...(acpMeta ? { acpMetadata: acpMeta } : {}),
+        })
       } else {
         const reasoningPart = part as ReasoningUIPart
         currentItems.push({ type: 'reasoning', content: reasoningPart, id: `reasoning-${reasoningIdCounter}` })

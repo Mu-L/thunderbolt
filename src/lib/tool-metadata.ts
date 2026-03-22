@@ -1,7 +1,23 @@
 import type { ToolConfig } from '@/types'
 import { memoize } from './memoize'
 import { getAvailableTools } from './tools'
-import { Calendar, CloudSun, FileText, FolderSearch, Globe, Inbox, Mail, MailSearch, Search } from 'lucide-react'
+import type { ToolKind } from '@agentclientprotocol/sdk'
+import {
+  Brain,
+  Calendar,
+  CloudSun,
+  FileEdit,
+  FileText,
+  FolderSearch,
+  Globe,
+  Inbox,
+  Mail,
+  MailSearch,
+  Move,
+  Search,
+  Terminal,
+  Trash2,
+} from 'lucide-react'
 import ky from 'ky'
 
 export type ToolCategory = 'search' | 'data' | 'action' | 'analysis' | 'communication' | 'weather' | 'unknown'
@@ -193,6 +209,74 @@ const getToolIcon = (toolName: string) => {
     default:
       return null
   }
+}
+
+/**
+ * Maps ACP ToolKind to a Lucide icon component.
+ * Used when rendering tool calls from external ACP agents.
+ */
+export const getToolKindIcon = (kind: ToolKind) => {
+  switch (kind) {
+    case 'read':
+      return FileText
+    case 'search':
+      return Search
+    case 'fetch':
+      return Globe
+    case 'edit':
+      return FileEdit
+    case 'delete':
+      return Trash2
+    case 'move':
+      return Move
+    case 'execute':
+      return Terminal
+    case 'think':
+      return Brain
+    case 'switch_mode':
+    case 'other':
+    default:
+      return null
+  }
+}
+
+/**
+ * Generates a display name for an ACP ToolKind.
+ */
+export const getToolKindDisplayName = (kind: ToolKind, title?: string): string => {
+  if (title) return title
+
+  switch (kind) {
+    case 'read':
+      return 'Reading'
+    case 'search':
+      return 'Searching'
+    case 'fetch':
+      return 'Fetching'
+    case 'edit':
+      return 'Editing'
+    case 'delete':
+      return 'Deleting'
+    case 'move':
+      return 'Moving'
+    case 'execute':
+      return 'Executing'
+    case 'think':
+      return 'Thinking'
+    case 'switch_mode':
+      return 'Switching mode'
+    case 'other':
+    default:
+      return 'Processing'
+  }
+}
+
+/**
+ * Generates a loading message for an ACP ToolKind.
+ */
+export const getToolKindLoadingMessage = (kind: ToolKind, title?: string): string => {
+  if (title) return `${title}...`
+  return `${getToolKindDisplayName(kind)}...`
 }
 
 const getDisplayNameInitials = (displayName: string) =>

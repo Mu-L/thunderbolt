@@ -1,5 +1,5 @@
 import { type ReasoningGroupItem } from '@/lib/assistant-message'
-import { getToolMetadataSync } from '@/lib/tool-metadata'
+import { getToolKindDisplayName, getToolKindIcon, getToolMetadataSync } from '@/lib/tool-metadata'
 import { formatDuration, splitPartType } from '@/lib/utils'
 import { type ReasoningUIPart, type ToolUIPart } from 'ai'
 import { Brain, DotIcon, Loader2 } from 'lucide-react'
@@ -26,6 +26,20 @@ const getItemData = (part: ReasoningGroupItem, isGroupReasoning: boolean) => {
 
     case 'tool': {
       const toolPart = part.content as ToolUIPart
+
+      // Use ACP ToolKind metadata if available (from external ACP agents)
+      if (part.acpMetadata?.kind) {
+        const kind = part.acpMetadata.kind
+        const acpIcon = getToolKindIcon(kind)
+        return {
+          Icon: acpIcon || DotIcon,
+          displayName: getToolKindDisplayName(kind, toolPart.toolName),
+          isLoading: isGroupReasoning && toolPart.state !== 'output-available' && toolPart.state !== 'output-error',
+          duration: (toolPart as any).metadata?.duration,
+        }
+      }
+
+      // Fallback to built-in tool metadata
       const [, toolName] = splitPartType(toolPart.type)
       const metadata = getToolMetadataSync(toolName)
 
