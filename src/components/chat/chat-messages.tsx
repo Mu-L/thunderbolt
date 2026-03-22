@@ -5,25 +5,30 @@ import { EncryptionMessage } from './encryption-message'
 import { ErrorMessage } from './error-message'
 import { useEffect, useMemo, useRef } from 'react'
 import { useCurrentChatSession } from '@/chats/chat-store'
-import { useChat as useChat_default } from '@ai-sdk/react'
 import { shouldUseViewportPositioning } from '@/chats/use-chat-scroll-handler'
 import { useHaptics } from '@/hooks/use-haptics'
+import { useAcpChatActions } from '@/chats/use-acp-chat'
+import type { SaveMessagesFunction } from '@/types'
 
 type ChatMessagesProps = {
-  useChat?: typeof useChat_default
+  saveMessages?: SaveMessagesFunction
 }
 
-export const ChatMessages = ({ useChat = useChat_default }: ChatMessagesProps) => {
+export const ChatMessages = ({ saveMessages }: ChatMessagesProps) => {
   const {
-    chatInstance,
     chatThread,
     id: chatThreadId,
     triggerData,
     retryCount,
     retriesExhausted,
+    messages,
+    status,
+    error: chatError,
   } = useCurrentChatSession()
 
-  const { error: chatError, status, messages, regenerate } = useChat({ chat: chatInstance })
+  // saveMessages is optional — when not provided, regenerate is a no-op
+  const dummySave: SaveMessagesFunction = async () => {}
+  const { regenerate } = useAcpChatActions(saveMessages ?? dummySave)
   const { triggerNotification } = useHaptics()
 
   const isStreaming = status === 'streaming'

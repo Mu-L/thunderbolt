@@ -1,4 +1,4 @@
-import { maxRetries } from '@/chats/chat-instance'
+import { maxRetries } from '@/chats/use-acp-chat'
 import { Loader2 } from 'lucide-react'
 import { memo } from 'react'
 

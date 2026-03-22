@@ -8,6 +8,7 @@ import { useIntegrationStatus, type IntegrationStatus } from '@/hooks/use-integr
 import { useQueryClient } from '@tanstack/react-query'
 import { v7 as uuidv7 } from 'uuid'
 import { updateMessageCache } from '@/dal/chat-messages'
+import { sendAcpPrompt } from '@/chats/use-acp-chat'
 
 type UseHandleIntegrationCompletionParams = {
   saveMessages: SaveMessagesFunction
@@ -53,7 +54,6 @@ const createRetryMessage = (originalUserText: string): ThunderboltUIMessage => (
 
 /**
  * Polls for integration status until the provider is confirmed connected.
- * Returns the status once confirmed, or null if timeout is reached.
  */
 const waitForProviderConnection = async (
   provider: 'google' | 'microsoft' | null,
@@ -87,34 +87,39 @@ const waitForProviderConnection = async (
 }
 
 /**
- * Waits for the chat instance to be ready before sending a message.
- * Throws an error if the timeout is reached.
+ * Waits for the session to be ready before sending a message.
  */
-const waitForChatReady = async (chatInstance: { status: string }, timeoutMs = 5000): Promise<void> => {
+const waitForSessionReady = async (sessionId: string, timeoutMs = 5000): Promise<void> => {
   const startTime = Date.now()
 
-  while (chatInstance.status !== 'ready') {
+  while (true) {
+    const session = useChatStore.getState().sessions.get(sessionId)
+    if (session?.status === 'ready') {
+      return
+    }
     if (Date.now() - startTime > timeoutMs) {
-      throw new Error(`Chat instance not ready after ${timeoutMs}ms`)
+      throw new Error(`Session not ready after ${timeoutMs}ms`)
     }
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
 }
 
 /**
- * Waits for a message to appear in the chat instance's messages array.
- * Returns the message index if found, or -1 if timeout is reached.
+ * Waits for a message to appear in the session's messages array.
  */
-const waitForMessageInChat = async (
-  chatInstance: { messages: ThunderboltUIMessage[] },
+const waitForMessageInSession = async (
+  sessionId: string,
   messageId: string,
   maxAttempts = 10,
   delayMs = 200,
 ): Promise<number> => {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const index = chatInstance.messages.findIndex((msg) => msg.id === messageId)
-    if (index >= 0) {
-      return index
+    const session = useChatStore.getState().sessions.get(sessionId)
+    if (session) {
+      const index = session.messages.findIndex((msg) => msg.id === messageId)
+      if (index >= 0) {
+        return index
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, delayMs))
   }
@@ -130,13 +135,14 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
   const db = useDatabase()
   const oauthRetryHandledRef = useRef<Set<string>>(new Set())
 
-  const { chatInstance, chatThreadId } = useChatStore(
+  const { sessionId, sessionStatus, messages } = useChatStore(
     useShallow((state) => {
       const session = state.sessions.get(state.currentSessionId ?? '')
 
       return {
-        chatInstance: session?.chatInstance,
-        chatThreadId: session?.id,
+        sessionId: session?.id,
+        sessionStatus: session?.status,
+        messages: session?.messages,
       }
     }),
   )
@@ -148,7 +154,7 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
   useEffect(() => {
     const handleOAuthComplete = (event: CustomEvent<{ widgetMessageId: string }>) => {
       const { widgetMessageId } = event.detail
-      if (!widgetMessageId || !chatInstance || !chatThreadId) {
+      if (!widgetMessageId || !sessionId || !messages) {
         return
       }
 
@@ -157,8 +163,7 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
         | 'microsoft'
         | null
 
-      // Trigger processing immediately (don't wait for integrationStatus to change)
-      // The processRetry function will poll until status is confirmed
+      // Trigger processing immediately
       processRetryForWidget(widgetMessageId, storedProvider)
     }
 
@@ -176,14 +181,15 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
       }
 
       // Find widget message in chat history (with retry for race conditions)
-      const widgetMessageIndex = await waitForMessageInChat(chatInstance!, widgetMessageId)
+      const widgetMessageIndex = await waitForMessageInSession(sessionId!, widgetMessageId)
 
       if (widgetMessageIndex < 0) {
         console.warn('Widget message not found:', widgetMessageId)
         return
       }
 
-      const originalUserText = findOriginalUserText(chatInstance!.messages, widgetMessageIndex)
+      const currentMessages = useChatStore.getState().sessions.get(sessionId!)?.messages ?? []
+      const originalUserText = findOriginalUserText(currentMessages, widgetMessageIndex)
       if (!originalUserText) {
         console.warn('Original user text not found for widget message:', widgetMessageId)
         return
@@ -196,7 +202,7 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
 
       try {
         await saveMessages({
-          id: chatThreadId!,
+          id: sessionId!,
           messages: [retryMessage],
         })
 
@@ -209,13 +215,13 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
           console.warn('Failed to mark widget as hidden:', err)
         }
 
-        await waitForChatReady(chatInstance!)
+        await waitForSessionReady(sessionId!)
 
-        await chatInstance!.sendMessage({
+        await sendAcpPrompt({
+          sessionId: sessionId!,
           text: retryText,
-          metadata: {
-            oauthRetry: true,
-          },
+          metadata: { oauthRetry: true },
+          saveMessages,
         })
       } catch (err) {
         console.error('Failed to process OAuth retry:', err)
@@ -225,5 +231,5 @@ export const useHandleIntegrationCompletion = ({ saveMessages }: UseHandleIntegr
 
     window.addEventListener(oauthRetryEvent, handleOAuthComplete as unknown as (event: Event) => void)
     return () => window.removeEventListener(oauthRetryEvent, handleOAuthComplete as unknown as (event: Event) => void)
-  }, [chatInstance, chatThreadId, integrationStatus, queryClient, saveMessages])
+  }, [sessionId, sessionStatus, messages, integrationStatus, queryClient, saveMessages])
 }

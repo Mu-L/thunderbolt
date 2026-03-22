@@ -1,6 +1,6 @@
-import { useChatStore } from '@/chats/chat-store'
+import { useChatStore, type ChatSession, type ChatStatus } from '@/chats/chat-store'
+import type { AcpClient } from '@/acp/client'
 import type { Agent, AutomationRun, ChatThread, Mode, Model, ThunderboltUIMessage } from '@/types'
-import { type Chat } from '@ai-sdk/react'
 import { mock } from 'bun:test'
 
 /**
@@ -55,100 +55,28 @@ export const createMockAutomationRun = (overrides?: Partial<AutomationRun>): Aut
 })
 
 /**
- * Creates a simple mock Chat instance for testing
+ * Creates a mock AcpClient for testing
  */
-export const createMockChatInstance = (
-  messages: ThunderboltUIMessage[] = [],
-  status: 'ready' | 'streaming' = 'ready',
-): Chat<ThunderboltUIMessage> => {
-  const sendMessage = mock(async (_params: { text: string; metadata?: Record<string, unknown> }) => {
-    // Mock implementation
-  })
-  const regenerate = mock(() => Promise.resolve())
-
-  return {
-    id: 'test-chat-id',
-    messages,
-    sendMessage,
-    status,
-    regenerate,
-    stop: mock(),
-    append: mock(),
-    reload: mock(),
-    setMessages: mock(),
-    setData: mock(),
-    setStatus: mock(),
-  } as unknown as Chat<ThunderboltUIMessage>
-}
-
-/**
- * Creates a mock useChat hook that reads from a chat instance
- */
-export const createMockUseChat = (chatInstance: Chat<ThunderboltUIMessage>, error?: Error) =>
-  ((_options?: { chat?: Chat<ThunderboltUIMessage> }) => ({
-    id: chatInstance.id,
-    status: chatInstance.status,
-    messages: chatInstance.messages,
-    error,
-    isLoading: false,
-    reload: mock(),
-    stop: chatInstance.stop,
-    append: mock(),
-    setMessages: mock(),
-    setData: mock(),
-    sendMessage: chatInstance.sendMessage,
-    regenerate: chatInstance.regenerate,
-    resumeStream: mock(),
-    addToolResult: mock(),
-    clearError: mock(),
-  })) as unknown as typeof import('@ai-sdk/react').useChat
-
-/**
- * Creates a mock Chat instance with validation logic that matches real implementation.
- * Use this when testing sendMessage validation behavior.
- */
-export const createMockChatInstanceWithValidation = (
-  messages: ThunderboltUIMessage[] = [],
-): Chat<ThunderboltUIMessage> & { _originalSendMessage: ReturnType<typeof mock> } => {
-  const originalSendMessage = mock(async (_params: { text: string; metadata?: Record<string, unknown> }) => {
-    // Mock implementation
-  })
-
-  // Wrap sendMessage with validation logic to match real implementation
-  const sendMessage = async (params: { text: string; metadata?: Record<string, unknown> }) => {
-    const { currentSessionId, sessions } = useChatStore.getState()
-    const session = currentSessionId ? sessions.get(currentSessionId) : null
-
-    if (!session?.selectedModel) {
-      throw new Error('No selected model')
-    }
-
-    const chatThread = session.chatThread
-
-    if (chatThread && chatThread.isEncrypted !== session.selectedModel.isConfidential) {
-      throw new Error(
-        `This model is not available for ${chatThread.isEncrypted === 1 ? 'encrypted' : 'unencrypted'} conversations.`,
-      )
-    }
-
-    return originalSendMessage(params)
-  }
-
-  return {
-    id: 'test-chat-id',
-    messages,
-    sendMessage,
-    status: 'ready',
-    regenerate: mock(),
-    stop: mock(),
-    append: mock(),
-    reload: mock(),
-    setMessages: mock(),
-    setData: mock(),
-    setStatus: mock(),
-    _originalSendMessage: originalSendMessage,
-  } as unknown as Chat<ThunderboltUIMessage> & { _originalSendMessage: ReturnType<typeof mock> }
-}
+export const createMockAcpClient = (): AcpClient =>
+  ({
+    connection: {},
+    initialize: mock(() => Promise.resolve({ protocolVersion: 1, agentInfo: { name: 'Test', version: '1.0.0' } })),
+    createSession: mock(() =>
+      Promise.resolve({
+        sessionId: 'test-session',
+        availableModes: [],
+        currentModeId: null,
+        configOptions: [],
+      }),
+    ),
+    prompt: mock(() => Promise.resolve({ stopReason: 'end_turn' })),
+    setMode: mock(() => Promise.resolve()),
+    setConfigOption: mock(() => Promise.resolve({ configOptions: [] })),
+    cancel: mock(() => Promise.resolve()),
+    getSessionState: mock(() => null),
+    signal: new AbortController().signal,
+    closed: new Promise(() => {}),
+  }) as unknown as AcpClient
 
 /**
  * Default mode used when selectedMode is null but a session needs to be created
@@ -200,44 +128,47 @@ const defaultTestModel: Model = {
  * Hydrates the store with a session for testing
  */
 export const hydrateStore = (state: {
-  chatInstance: Chat<ThunderboltUIMessage> | null
+  acpClient?: AcpClient | null
   chatThread: ChatThread | null
   id: string
+  messages?: ThunderboltUIMessage[]
+  status?: ChatStatus
+  error?: Error | null
   mcpClients?: unknown[]
-  modes?: Mode[]
-  models?: Model[]
   selectedMode?: Mode | null
   selectedModel: Model | null
   triggerData: AutomationRun | null
 }) => {
   const store = useChatStore.getState()
 
-  // Set modes first (needed for setSelectedMode)
-  if (state.modes) {
-    store.setModes(state.modes)
-  }
-
-  // Set models first (needed for setSelectedModel)
-  if (state.models) {
-    store.setModels(state.models)
-  }
-
   // Set MCP clients
   if (state.mcpClients) {
     store.setMcpClients(state.mcpClients as never[])
   }
 
-  // Create or update session - use defaults if selectedMode/Model is null
-  if (state.id && state.chatInstance) {
-    const sessionData = {
-      chatInstance: state.chatInstance,
-      chatThread: state.chatThread,
+  const acpClient = state.acpClient ?? createMockAcpClient()
+
+  // Create or update session
+  if (state.id) {
+    const sessionData: ChatSession = {
       id: state.id,
-      retryCount: 0,
-      retriesExhausted: false,
-      selectedAgent: defaultTestAgent,
+      chatThread: state.chatThread,
+      acpClient,
+      agentConfig: defaultTestAgent,
+
+      availableModes: [],
+      currentModeId: null,
+      configOptions: [],
+
+      messages: state.messages ?? [],
+      status: state.status ?? 'ready',
+      error: state.error ?? null,
+
       selectedMode: state.selectedMode ?? defaultTestMode,
       selectedModel: state.selectedModel ?? defaultTestModel,
+
+      retryCount: 0,
+      retriesExhausted: false,
       triggerData: state.triggerData,
     }
 
@@ -259,8 +190,6 @@ export const resetStore = () => {
     currentSessionId: null,
     agents: [],
     mcpClients: [],
-    modes: [],
-    models: [],
     sessions: new Map(),
   })
 }

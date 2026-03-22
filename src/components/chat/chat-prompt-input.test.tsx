@@ -1,12 +1,5 @@
 import { resetTestDatabase, setupTestDatabase, teardownTestDatabase } from '@/dal/test-utils'
-import {
-  createMockChatInstance,
-  createMockChatThread,
-  createMockModel,
-  createMockUseChat,
-  hydrateStore,
-  resetStore,
-} from '@/test-utils/chat-store-mocks'
+import { createMockChatThread, createMockModel, hydrateStore, resetStore } from '@/test-utils/chat-store-mocks'
 import { createQueryTestWrapper } from '@/test-utils/react-query'
 import type { Model } from '@/types'
 import { act, cleanup, render, screen } from '@testing-library/react'
@@ -45,20 +38,16 @@ const TestWrapper = ({ children }: { children: ReactNode }) => {
 /** Hydrate the chat store with sensible defaults for testing */
 const setupStore = () => {
   const mockModel = createMockModel()
-  const mockChatInstance = createMockChatInstance([], 'ready')
-  const mockUseChat = createMockUseChat(mockChatInstance)
 
   hydrateStore({
-    chatInstance: mockChatInstance,
     chatThread: createMockChatThread(),
     id: 'thread-1',
     mcpClients: [],
-    models: [mockModel],
     selectedModel: mockModel,
     triggerData: null,
   })
 
-  return { mockModel, mockChatInstance, mockUseChat }
+  return { mockModel }
 }
 
 describe('ChatPromptInput', () => {
@@ -82,9 +71,9 @@ describe('ChatPromptInput', () => {
 
   describe('rendering', () => {
     it('should render textarea with placeholder', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
-      render(<ChatPromptInput useChat={mockUseChat} useIsMobile={createMockUseIsMobile()} />, {
+      render(<ChatPromptInput useIsMobile={createMockUseIsMobile()} />, {
         wrapper: TestWrapper,
       })
 
@@ -94,12 +83,11 @@ describe('ChatPromptInput', () => {
 
   describe('mobile layout', () => {
     it('should apply mobile class names', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
-      const { container } = render(
-        <ChatPromptInput useChat={mockUseChat} useIsMobile={createMockUseIsMobile(true)} />,
-        { wrapper: TestWrapper },
-      )
+      const { container } = render(<ChatPromptInput useIsMobile={createMockUseIsMobile(true)} />, {
+        wrapper: TestWrapper,
+      })
 
       const form = container.querySelector('form')
       expect(form?.className).toContain('gap-0')
@@ -107,12 +95,11 @@ describe('ChatPromptInput', () => {
     })
 
     it('should apply unified class names when not mobile', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
-      const { container } = render(
-        <ChatPromptInput useChat={mockUseChat} useIsMobile={createMockUseIsMobile(false)} />,
-        { wrapper: TestWrapper },
-      )
+      const { container } = render(<ChatPromptInput useIsMobile={createMockUseIsMobile(false)} />, {
+        wrapper: TestWrapper,
+      })
 
       const form = container.querySelector('form')
       expect(form?.className).toContain('gap-0')
@@ -120,11 +107,10 @@ describe('ChatPromptInput', () => {
     })
 
     it('should hide context usage indicator on mobile', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
       render(
         <ChatPromptInput
-          useChat={mockUseChat}
           useIsMobile={createMockUseIsMobile(true)}
           useContextTracking={createMockUseContextTracking(false, true, 1000, 2000)}
         />,
@@ -135,11 +121,10 @@ describe('ChatPromptInput', () => {
     })
 
     it('should show context usage indicator on desktop', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
       render(
         <ChatPromptInput
-          useChat={mockUseChat}
           useIsMobile={createMockUseIsMobile(false)}
           useContextTracking={createMockUseContextTracking(false, true, 1000, 2000)}
         />,
@@ -152,10 +137,10 @@ describe('ChatPromptInput', () => {
 
   describe('ref methods', () => {
     it('should expose focus method that focuses textarea', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
       const ref = { current: null } as unknown as RefObject<ChatPromptInputRef>
 
-      render(<ChatPromptInput ref={ref} useChat={mockUseChat} useIsMobile={createMockUseIsMobile()} />, {
+      render(<ChatPromptInput ref={ref} useIsMobile={createMockUseIsMobile()} />, {
         wrapper: TestWrapper,
       })
 
@@ -174,10 +159,10 @@ describe('ChatPromptInput', () => {
     })
 
     it('should expose setInput method that updates textarea value', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
       const ref = { current: null } as unknown as RefObject<ChatPromptInputRef>
 
-      render(<ChatPromptInput ref={ref} useChat={mockUseChat} useIsMobile={createMockUseIsMobile()} />, {
+      render(<ChatPromptInput ref={ref} useIsMobile={createMockUseIsMobile()} />, {
         wrapper: TestWrapper,
       })
 
@@ -192,12 +177,11 @@ describe('ChatPromptInput', () => {
 
   describe('submitOnEnter', () => {
     it('should disable submit on enter when mobile viewport', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
-      const { container } = render(
-        <ChatPromptInput useChat={mockUseChat} useIsMobile={createMockUseIsMobile(true)} />,
-        { wrapper: TestWrapper },
-      )
+      const { container } = render(<ChatPromptInput useIsMobile={createMockUseIsMobile(true)} />, {
+        wrapper: TestWrapper,
+      })
 
       const textarea = container.querySelector('textarea')!
       const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
@@ -212,10 +196,10 @@ describe('ChatPromptInput', () => {
   })
 
   describe('dependency injection', () => {
-    it('should accept injected useChat', () => {
-      const { mockUseChat } = setupStore()
+    it('should render with store-based state', () => {
+      setupStore()
 
-      const { container } = render(<ChatPromptInput useChat={mockUseChat} useIsMobile={createMockUseIsMobile()} />, {
+      const { container } = render(<ChatPromptInput useIsMobile={createMockUseIsMobile()} />, {
         wrapper: TestWrapper,
       })
 
@@ -223,14 +207,10 @@ describe('ChatPromptInput', () => {
     })
 
     it('should accept injected useContextTracking', () => {
-      const { mockUseChat } = setupStore()
+      setupStore()
 
       const { container } = render(
-        <ChatPromptInput
-          useChat={mockUseChat}
-          useContextTracking={createMockUseContextTracking()}
-          useIsMobile={createMockUseIsMobile()}
-        />,
+        <ChatPromptInput useContextTracking={createMockUseContextTracking()} useIsMobile={createMockUseIsMobile()} />,
         { wrapper: TestWrapper },
       )
 

@@ -7,15 +7,12 @@ import { useChatScrollHandler } from '@/chats/use-chat-scroll-handler'
 import { ChatMessages } from './chat-messages'
 import { ChatPromptInput, type ChatPromptInputRef } from './chat-prompt-input'
 import { useCurrentChatSession } from '@/chats/chat-store'
-import { useChat } from '@ai-sdk/react'
 import { useChatAutomation } from '@/chats/use-chat-automation'
 import { ScrollToBottomButton } from './scroll-to-bottom-button'
 import { AppLogo } from '../app-logo'
 
 export default function ChatUI() {
-  const { chatInstance } = useCurrentChatSession()
-
-  const { messages } = useChat({ chat: chatInstance })
+  const { messages } = useCurrentChatSession()
 
   useChatAutomation()
 

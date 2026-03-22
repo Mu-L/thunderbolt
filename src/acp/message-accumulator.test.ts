@@ -1,0 +1,140 @@
+import { describe, expect, test } from 'bun:test'
+import { createMessageAccumulator } from './message-accumulator'
+
+describe('createMessageAccumulator', () => {
+  test('accumulates text chunks into single text part', () => {
+    const acc = createMessageAccumulator('msg-1')
+
+    acc.handleUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Hello ' },
+    })
+
+    acc.handleUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'world!' },
+    })
+
+    const msg = acc.buildMessage()
+    expect(msg.id).toBe('msg-1')
+    expect(msg.role).toBe('assistant')
+    expect(msg.parts).toHaveLength(1)
+    expect(msg.parts[0]).toEqual({ type: 'text', text: 'Hello world!' })
+  })
+
+  test('accumulates reasoning chunks into reasoning part', () => {
+    const acc = createMessageAccumulator()
+
+    acc.handleUpdate({
+      sessionUpdate: 'agent_thought_chunk',
+      content: { type: 'text', text: 'Let me think...' },
+    })
+
+    acc.handleUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'The answer is 42.' },
+    })
+
+    const msg = acc.buildMessage()
+    expect(msg.parts).toHaveLength(2)
+    expect(msg.parts[0].type).toBe('reasoning')
+    expect(msg.parts[1]).toEqual({ type: 'text', text: 'The answer is 42.' })
+  })
+
+  test('tracks tool calls', () => {
+    const acc = createMessageAccumulator()
+
+    acc.handleUpdate({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'tc-1',
+      title: 'get_weather',
+      kind: 'fetch',
+      status: 'in_progress',
+    })
+
+    const msg1 = acc.buildMessage()
+    const toolPart = msg1.parts.find((p) => p.type.startsWith('tool-'))
+    expect(toolPart).toBeDefined()
+
+    // Update with result
+    acc.handleUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'tc-1',
+      status: 'completed',
+      content: [{ type: 'content', content: { type: 'text', text: 'Sunny, 72°F' } }],
+    })
+
+    const msg2 = acc.buildMessage()
+    const completedToolPart = msg2.parts.find((p) => p.type.startsWith('tool-'))
+    expect(completedToolPart).toBeDefined()
+    if (completedToolPart && 'state' in completedToolPart) {
+      expect((completedToolPart as unknown as { state: string }).state).toBe('result')
+      expect((completedToolPart as unknown as { output: unknown }).output).toBe('Sunny, 72°F')
+    }
+  })
+
+  test('handles interleaved reasoning, tools, and text', () => {
+    const acc = createMessageAccumulator()
+
+    acc.handleUpdate({
+      sessionUpdate: 'agent_thought_chunk',
+      content: { type: 'text', text: 'Need to search...' },
+    })
+
+    acc.handleUpdate({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'tc-1',
+      title: 'web_search',
+      kind: 'search',
+      status: 'in_progress',
+    })
+
+    acc.handleUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'tc-1',
+      status: 'completed',
+      content: [{ type: 'content', content: { type: 'text', text: 'Results found' } }],
+    })
+
+    acc.handleUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Based on my search...' },
+    })
+
+    const msg = acc.buildMessage()
+    expect(msg.parts).toHaveLength(3) // reasoning, tool, text
+    expect(msg.parts[0].type).toBe('reasoning')
+    expect(msg.parts[1].type).toStartWith('tool-')
+    expect(msg.parts[2].type).toBe('text')
+  })
+
+  test('hasContent is false initially', () => {
+    const acc = createMessageAccumulator()
+    expect(acc.hasContent).toBe(false)
+  })
+
+  test('hasContent is true after receiving content', () => {
+    const acc = createMessageAccumulator()
+    acc.handleUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Hi' },
+    })
+    expect(acc.hasContent).toBe(true)
+  })
+
+  test('returns empty text part when no content', () => {
+    const acc = createMessageAccumulator()
+    const msg = acc.buildMessage()
+    expect(msg.parts).toHaveLength(1)
+    expect(msg.parts[0]).toEqual({ type: 'text', text: '' })
+  })
+
+  test('handleUpdate returns current message state', () => {
+    const acc = createMessageAccumulator()
+    const msg = acc.handleUpdate({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Hi' },
+    })
+    expect(msg.parts[0]).toEqual({ type: 'text', text: 'Hi' })
+  })
+})
