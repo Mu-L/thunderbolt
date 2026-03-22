@@ -79,7 +79,7 @@ export const useHydrateChatStore = ({ id, isNew }: UseHydrateChatStoreParams) =>
     }
 
     // Fetch thread info to check if we need to generate a title
-    const thread = await getOrCreateChatThread(db, id, session.selectedModel.id)
+    const thread = await getOrCreateChatThread(db, id, session.selectedModel.id, session.agentConfig.id)
 
     // Save messages and update context size using DAL
     await saveMessagesWithContextUpdate(db, id, messages)

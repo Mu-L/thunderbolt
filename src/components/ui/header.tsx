@@ -37,15 +37,21 @@ export const Header = () => {
   const isChatRoute = location.pathname.startsWith('/chats')
   const showAgentSelector = isChatRoute && agents.length > 0
 
+  const handleAgentChange = async (agentId: string) => {
+    if (!agentId) return
+    // Per ACP spec: a chat belongs to one agent. Switching agents creates a new chat.
+    // Persist the agent selection, then navigate to a new chat which will use this agent.
+    if (chatThreadId) {
+      await setSelectedAgent(chatThreadId, agentId).catch(console.error)
+    }
+    navigate('/chats/new')
+  }
+
   const agentSelector = showAgentSelector && (
     <AgentSelector
       agents={agents}
       selectedAgent={selectedAgent ?? null}
-      onAgentChange={(agentId) => {
-        if (chatThreadId && agentId) {
-          setSelectedAgent(chatThreadId, agentId).catch(console.error)
-        }
-      }}
+      onAgentChange={handleAgentChange}
     />
   )
 
