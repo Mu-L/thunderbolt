@@ -96,7 +96,12 @@ const getDeviceId = async (): Promise<string> => {
 let keyPromise: Promise<CryptoKey> | null = null
 
 const getEncryptionKey = (): Promise<CryptoKey> => {
-  keyPromise ??= getDeviceId().then(deriveKey)
+  keyPromise ??= getDeviceId()
+    .then(deriveKey)
+    .catch((err) => {
+      keyPromise = null
+      throw err
+    })
   return keyPromise
 }
 
