@@ -1,8 +1,9 @@
 import { describe, expect, it, beforeEach, mock } from 'bun:test'
 
+// Mock crypto to avoid IndexedDB
 mock.module('@/crypto', () => ({
   encrypt: async (plaintext: string) => ({
-    iv: btoa('iv'),
+    iv: btoa(`iv`),
     ciphertext: btoa(`ct-${plaintext}`),
   }),
   decrypt: async () => '',
@@ -13,6 +14,7 @@ mock.module('@/crypto', () => ({
   exportPublicKey: async () => '',
   importPublicKey: async () => ({}),
   wrapCK: async () => '',
+  rewrapCK: async () => '',
   unwrapCK: async () => ({}),
   createCanary: async () => ({ canaryIv: '', canaryCtext: '' }),
   verifyCanary: async () => true,
@@ -29,15 +31,18 @@ mock.module('@/crypto', () => ({
   ValidationError: class extends Error {},
 }))
 
+// Must also ensure encryption is enabled
+const { setEncryptionEnabled } = await import('./enabled')
 const { invalidateCKCache } = await import('./codec')
 const { encodeForUpload } = await import('./upload-encoder')
 
 describe('encodeForUpload', () => {
   beforeEach(() => {
+    setEncryptionEnabled(true)
     invalidateCKCache()
   })
 
-  it('encrypts encrypted columns for known tables', async () => {
+  it('encodes encrypted columns for known tables', async () => {
     const op = {
       op: 'PUT' as const,
       type: 'tasks',
@@ -47,14 +52,22 @@ describe('encodeForUpload', () => {
 
     const result = await encodeForUpload(op)
 
+    // 'item' is an encrypted column for tasks
     expect(typeof result.data?.item).toBe('string')
     expect((result.data?.item as string).startsWith('__enc:')).toBe(true)
+    // 'order' is NOT encrypted
     expect(result.data?.order).toBe(1)
+    // 'is_complete' is NOT encrypted
     expect(result.data?.is_complete).toBe(0)
   })
 
   it('passes through DELETE operations', async () => {
-    const op = { op: 'DELETE' as const, type: 'tasks', id: '123' }
+    const op = {
+      op: 'DELETE' as const,
+      type: 'tasks',
+      id: '123',
+    }
+
     const result = await encodeForUpload(op)
     expect(result).toEqual(op)
   })
@@ -71,7 +84,23 @@ describe('encodeForUpload', () => {
     expect(result.data?.foo).toBe('bar')
   })
 
-  it('does not encrypt non-string values', async () => {
+  it('passes through when encryption is disabled', async () => {
+    setEncryptionEnabled(false)
+
+    const op = {
+      op: 'PUT' as const,
+      type: 'tasks',
+      id: '123',
+      data: { item: 'Buy groceries' },
+    }
+
+    const result = await encodeForUpload(op)
+    expect(result.data?.item).toBe('Buy groceries')
+
+    setEncryptionEnabled(true)
+  })
+
+  it('does not encode non-string values', async () => {
     const op = {
       op: 'PUT' as const,
       type: 'tasks',
@@ -84,7 +113,7 @@ describe('encodeForUpload', () => {
     expect(result.data?.order).toBe(5)
   })
 
-  it('encrypts multiple columns', async () => {
+  it('encodes multiple encrypted columns', async () => {
     const op = {
       op: 'PUT' as const,
       type: 'chat_messages',
@@ -98,8 +127,10 @@ describe('encodeForUpload', () => {
 
     const result = await encodeForUpload(op)
 
+    // 'content' and 'parts' are encrypted columns for chat_messages
     expect((result.data?.content as string).startsWith('__enc:')).toBe(true)
     expect((result.data?.parts as string).startsWith('__enc:')).toBe(true)
+    // 'chat_thread_id' is NOT encrypted
     expect(result.data?.chat_thread_id).toBe('thread-1')
   })
 })

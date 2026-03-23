@@ -1,48 +1,73 @@
 import { describe, expect, it } from 'bun:test'
-import { isValidBase64, decodeIfValidBase64, encodeToBase64 } from './base64'
+import { isBase64, encodeIfNotBase64, decodeIfBase64 } from './base64'
 
 describe('base64 utilities', () => {
-  describe('isValidBase64', () => {
-    it('returns true for valid base64', () => {
-      expect(isValidBase64(btoa('hello'))).toBe(true)
+  describe('isBase64', () => {
+    it('returns true for b64: prefixed strings', () => {
+      expect(isBase64('b64:aGVsbG8=')).toBe(true)
     })
 
-    it('returns false for non-base64 strings', () => {
-      expect(isValidBase64('not base64!!!')).toBe(false)
+    it('returns false for non-prefixed strings', () => {
+      expect(isBase64('hello')).toBe(false)
+      expect(isBase64('aGVsbG8=')).toBe(false)
     })
 
-    it('returns false for empty strings', () => {
-      expect(isValidBase64('')).toBe(false)
-    })
-  })
-
-  describe('encodeToBase64', () => {
-    it('encodes to base64', () => {
-      expect(encodeToBase64('hello')).toBe(btoa('hello'))
+    it('returns false for empty/whitespace strings', () => {
+      expect(isBase64('')).toBe(false)
+      expect(isBase64('  ')).toBe(false)
     })
   })
 
-  describe('decodeIfValidBase64', () => {
-    it('decodes valid base64', () => {
-      const encoded = btoa('hello world')
-      expect(decodeIfValidBase64(encoded)).toBe('hello world')
+  describe('encodeIfNotBase64', () => {
+    it('encodes with b64: prefix', () => {
+      const encoded = encodeIfNotBase64('hello')
+      expect(encoded.startsWith('b64:')).toBe(true)
     })
 
-    it('returns original for non-base64', () => {
-      expect(decodeIfValidBase64('not base64!!!')).toBe('not base64!!!')
+    it('is idempotent — does not double-encode', () => {
+      const encoded = encodeIfNotBase64('hello')
+      expect(encodeIfNotBase64(encoded)).toBe(encoded)
     })
 
     it('returns empty string as-is', () => {
-      expect(decodeIfValidBase64('')).toBe('')
+      expect(encodeIfNotBase64('')).toBe('')
+    })
+  })
+
+  describe('decodeIfBase64', () => {
+    it('decodes prefixed format', () => {
+      const encoded = encodeIfNotBase64('hello world')
+      expect(decodeIfBase64(encoded)).toBe('hello world')
+    })
+
+    it('handles unicode', () => {
+      const original = 'café résumé'
+      const encoded = encodeIfNotBase64(original)
+      expect(decodeIfBase64(encoded)).toBe(original)
+    })
+
+    it('returns non-base64 strings as-is', () => {
+      expect(decodeIfBase64('just text')).toBe('just text')
+    })
+
+    it('returns empty string as-is', () => {
+      expect(decodeIfBase64('')).toBe('')
+    })
+
+    it('returns invalid base64 as-is', () => {
+      expect(decodeIfBase64('b64:not!valid!base64!!!')).toBe('b64:not!valid!base64!!!')
     })
   })
 
   describe('round-trip', () => {
     it('encode → decode returns original', () => {
-      const cases = ['hello', 'hello world', '{"key": "value"}', 'a']
+      const cases = ['hello', 'hello world', 'café', '{"key": "value"}', '🎉', '']
       for (const original of cases) {
-        const encoded = encodeToBase64(original)
-        const decoded = decodeIfValidBase64(encoded)
+        if (original === '') {
+          continue // empty passthrough
+        }
+        const encoded = encodeIfNotBase64(original)
+        const decoded = decodeIfBase64(encoded)
         expect(decoded).toBe(original)
       }
     })

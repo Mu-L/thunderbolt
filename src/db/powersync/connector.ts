@@ -125,14 +125,16 @@ export class ThunderboltConnector implements PowerSyncBackendConnector {
     }
 
     try {
-      // Convert CRUD operations to our API format
-      const operations = transaction.crud.map((op) =>
-        encodeForUpload({
-          op: op.op.toUpperCase() as 'PUT' | 'PATCH' | 'DELETE',
-          type: op.table,
-          id: op.id,
-          data: op.opData,
-        }),
+      // Convert CRUD operations to our API format (encode encrypted columns)
+      const operations = await Promise.all(
+        transaction.crud.map((op) =>
+          encodeForUpload({
+            op: op.op.toUpperCase() as 'PUT' | 'PATCH' | 'DELETE',
+            type: op.table,
+            id: op.id,
+            data: op.opData,
+          }),
+        ),
       )
 
       console.info(`Uploading ${operations.length} operations to backend`)
