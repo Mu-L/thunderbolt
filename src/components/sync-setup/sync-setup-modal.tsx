@@ -1,5 +1,6 @@
 import { ResponsiveModal, ResponsiveModalContent } from '@/components/ui/responsive-modal'
 import { Button } from '@/components/ui/button'
+import { useSettings } from '@/hooks/use-settings'
 import { useSyncSetup } from '@/hooks/use-sync-setup'
 import { RecoveryKeyDisplayStep } from './recovery-key-display-step'
 import { ApprovalWaitingStep } from './approval-waiting-step'
@@ -17,13 +18,14 @@ type SyncSetupModalProps = {
 /**
  * Multi-step wizard for sync/encryption setup.
  *
- * Flow: intro → detecting → (first-device-setup → recovery-key-display | approval-waiting)
+ * Flow: intro → detecting (test buttons) → (first-device-setup → recovery-key-display | approval-waiting)
  *
- * The "detecting" step uses test buttons for now. In PR 5 it will make a
- * BE request to determine firstDevice automatically.
+ * The "detecting" step shows test buttons. The intro step calls the real BE
+ * to register the device and detect firstDevice, then shows detecting for manual path selection.
  */
 export const SyncSetupModal = ({ open, onOpenChange, onComplete }: SyncSetupModalProps) => {
-  const setup = useSyncSetup()
+  const { cloudUrl } = useSettings({ cloud_url: 'http://localhost:8000/v1' })
+  const setup = useSyncSetup(cloudUrl.value)
   const [_recoveryKeyConfirmed, setRecoveryKeyConfirmed] = useState(false)
 
   const isRecoveryKeyStep = setup.step === 'recovery-key-display'
@@ -40,16 +42,24 @@ export const SyncSetupModal = ({ open, onOpenChange, onComplete }: SyncSetupModa
     handleClose()
   }
 
-  const handleApprovalContinue = () => {
-    const success = setup.confirmApproval()
+  const handleIntro = async () => {
+    const result = await setup.continueIntro()
+    if (result === 'already-trusted') {
+      onComplete()
+      handleClose()
+    }
+  }
+
+  const handleApprovalContinue = async () => {
+    const success = await setup.confirmApproval()
     if (success) {
       onComplete()
       handleClose()
     }
   }
 
-  const handleRecoveryKeySubmit = () => {
-    const success = setup.submitRecoveryKey()
+  const handleRecoveryKeySubmit = async () => {
+    const success = await setup.submitRecoveryKey()
     if (success) {
       onComplete()
       handleClose()
@@ -89,13 +99,21 @@ export const SyncSetupModal = ({ open, onOpenChange, onComplete }: SyncSetupModa
       )}
 
       <ResponsiveModalContent>
-        {setup.step === 'intro' && <IntroStep onContinue={setup.continueIntro} />}
-
-        {setup.step === 'detecting' && (
-          <DetectingStep onFirstDevice={setup.chooseFirstDevice} onAdditionalDevice={setup.chooseAdditionalDevice} />
+        {setup.step === 'intro' && (
+          <IntroStep onContinue={handleIntro} isLoading={setup.isLoading} error={setup.error} />
         )}
 
-        {setup.step === 'first-device-setup' && <FirstDeviceSetupStep onContinue={setup.continueFirstDeviceSetup} />}
+        {setup.step === 'detecting' && (
+          <DetectingStep
+            onFirstDevice={setup.chooseFirstDevice}
+            onAdditionalDevice={setup.chooseAdditionalDevice}
+            detectedFirstDevice={setup.detectedFirstDevice}
+          />
+        )}
+
+        {setup.step === 'first-device-setup' && (
+          <FirstDeviceSetupStep onContinue={setup.continueFirstDeviceSetup} isLoading={setup.isLoading} />
+        )}
 
         {setup.step === 'recovery-key-display' && (
           <RecoveryKeyDisplayStep
@@ -132,7 +150,13 @@ export const SyncSetupModal = ({ open, onOpenChange, onComplete }: SyncSetupModa
 // Intro step — user-facing welcome screen
 // =============================================================================
 
-const IntroStep = ({ onContinue }: { onContinue: () => void }) => (
+type IntroStepProps = {
+  onContinue: () => void
+  isLoading: boolean
+  error: string | null
+}
+
+const IntroStep = ({ onContinue, isLoading, error }: IntroStepProps) => (
   <div className="w-full flex flex-col">
     <div className="text-center space-y-4">
       <IconCircle>
@@ -143,32 +167,37 @@ const IntroStep = ({ onContinue }: { onContinue: () => void }) => (
         Keep your data in sync across all your devices. Everything is encrypted end-to-end — only your devices can read
         your data.
       </p>
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
 
     <div className="pt-5">
-      <Button className="w-full" onClick={onContinue}>
-        Continue
+      <Button className="w-full" onClick={onContinue} disabled={isLoading}>
+        {isLoading ? 'Setting up…' : 'Continue'}
       </Button>
     </div>
   </div>
 )
 
 // =============================================================================
-// Detecting step — test buttons for now, BE auto-detection in PR 5
+// Detecting step — test buttons for now, auto-detection via BE in future
 // =============================================================================
 
 type DetectingStepProps = {
   onFirstDevice: () => void
   onAdditionalDevice: () => void
+  detectedFirstDevice: boolean | null
 }
 
-const DetectingStep = ({ onFirstDevice, onAdditionalDevice }: DetectingStepProps) => (
+const DetectingStep = ({ onFirstDevice, onAdditionalDevice, detectedFirstDevice }: DetectingStepProps) => (
   <div className="w-full flex flex-col">
     <div className="text-center space-y-4">
-      <h2 className="text-2xl font-bold">Detecting your devices…</h2>
-      <p className="text-xs text-muted-foreground/60">
-        (Testing only — in production this step auto-detects via BE request)
-      </p>
+      <h2 className="text-2xl font-bold">Choose setup path</h2>
+      {detectedFirstDevice !== null && (
+        <p className="text-sm text-muted-foreground">
+          Server detected: <strong>{detectedFirstDevice ? 'First device' : 'Additional device'}</strong>
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground/60">(Testing only — select a path to continue)</p>
     </div>
 
     <div className="flex flex-col gap-3 pt-5">
@@ -195,7 +224,12 @@ const DetectingStep = ({ onFirstDevice, onAdditionalDevice }: DetectingStepProps
 // First device setup step — explanation before recovery key
 // =============================================================================
 
-const FirstDeviceSetupStep = ({ onContinue }: { onContinue: () => void }) => (
+type FirstDeviceSetupStepProps = {
+  onContinue: () => void
+  isLoading: boolean
+}
+
+const FirstDeviceSetupStep = ({ onContinue, isLoading }: FirstDeviceSetupStepProps) => (
   <div className="w-full flex flex-col">
     <div className="text-center space-y-4">
       <IconCircle>
@@ -213,8 +247,8 @@ const FirstDeviceSetupStep = ({ onContinue }: { onContinue: () => void }) => (
     </div>
 
     <div className="pt-5">
-      <Button className="w-full" onClick={onContinue}>
-        Continue
+      <Button className="w-full" onClick={onContinue} disabled={isLoading}>
+        {isLoading ? 'Generating encryption key…' : 'Continue'}
       </Button>
     </div>
   </div>
