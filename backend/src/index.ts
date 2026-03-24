@@ -14,6 +14,7 @@ import { createProToolsRoutes } from '@/pro/routes'
 import { createWaitlistRoutes } from '@/waitlist/routes'
 import { createAccountRoutes } from '@/api/account'
 import { createPowerSyncRoutes } from '@/api/powersync'
+import { createAgentsRoutes } from '@/agents/routes'
 import { createHaystackRoutes } from '@/haystack/routes'
 import type { AppDeps } from '@/types'
 import { cors } from '@elysiajs/cors'
@@ -87,6 +88,7 @@ export const createApp = async (deps?: AppDeps) => {
       .use(createWaitlistRoutes({ database, auth, emailService: deps?.waitlistEmailService }))
       .use(createPowerSyncRoutes(auth, settings, database))
       .use(createAccountRoutes(auth, database))
+      .use(createAgentsRoutes())
       .use(createHaystackRoutes(fetchFn))
   )
 }

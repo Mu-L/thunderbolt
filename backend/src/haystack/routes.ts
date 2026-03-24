@@ -4,7 +4,8 @@ import { HaystackClient } from './client'
 import { createHaystackWebSocketHandler } from './websocket-handler'
 
 /**
- * Create Haystack routes: pipeline discovery, file proxy, and WebSocket ACP endpoints.
+ * Create Haystack routes: file proxy and WebSocket ACP endpoints.
+ * Discovery is handled by the generic /agents endpoint.
  * Returns an empty router if Haystack is not configured.
  */
 export const createHaystackRoutes = (fetchFn: typeof fetch = globalThis.fetch) => {
@@ -14,8 +15,6 @@ export const createHaystackRoutes = (fetchFn: typeof fetch = globalThis.fetch) =
   const router = new Elysia({ prefix: '/haystack' })
 
   if (pipelines.length === 0) {
-    // Return routes that return empty data when Haystack is not configured
-    router.get('/pipelines', () => ({ data: [] }))
     return router
   }
 
@@ -34,14 +33,6 @@ export const createHaystackRoutes = (fetchFn: typeof fetch = globalThis.fetch) =
       ),
     ]),
   )
-
-  router.get('/pipelines', () => ({
-    data: pipelines.map((p) => ({
-      slug: p.slug,
-      name: p.name,
-      icon: p.icon,
-    })),
-  }))
 
   router.get(
     '/files/:fileId',

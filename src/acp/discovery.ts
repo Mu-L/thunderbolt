@@ -1,10 +1,11 @@
 import { isAgentAvailableOnPlatform } from '@/lib/platform'
 import { isAgentAvailable } from '@/acp/stdio-stream'
-import { localAgentCandidates, hashAgent, haystackAgentFromPipeline } from '@/defaults/agents'
+import { localAgentCandidates, hashAgent } from '@/defaults/agents'
 import { agentsTable } from '@/db/tables'
 import { eq, inArray } from 'drizzle-orm'
 import type { AnyDrizzleDatabase } from '@/db/database-interface'
 import type { Agent } from '@/types'
+import type { RemoteAgentDescriptor } from '@shared/agent-types'
 
 /**
  * Upsert agents into the DB, inserting new ones and updating changed ones.
@@ -62,38 +63,31 @@ export const discoverAndSeedLocalAgents = async (db: AnyDrizzleDatabase): Promis
   return discovered
 }
 
-type HaystackPipelineInfo = {
-  slug: string
-  name: string
-  icon?: string
-}
-
-/**
- * Discover remote Haystack agents from the backend and upsert them into the DB.
- * Gracefully returns empty if the backend doesn't have Haystack configured.
- */
-export const discoverAndSeedRemoteHaystackAgents = async (
-  db: AnyDrizzleDatabase,
-  cloudUrl: string,
-): Promise<Agent[]> => {
-  let pipelines: HaystackPipelineInfo[]
+const fetchRemoteAgentDescriptors = async (cloudUrl: string): Promise<RemoteAgentDescriptor[]> => {
   try {
-    const response = await fetch(`${cloudUrl}/haystack/pipelines`)
-    if (!response.ok) {
-      return []
-    }
-    const data = (await response.json()) as { data: HaystackPipelineInfo[] }
-    pipelines = data.data
+    const response = await fetch(`${cloudUrl}/agents`)
+    if (!response.ok) return []
+    const data = (await response.json()) as { data?: RemoteAgentDescriptor[] }
+    return data.data ?? []
   } catch {
     return []
   }
+}
 
-  if (!pipelines || pipelines.length === 0) {
-    return []
-  }
+export const discoverAndSeedRemoteAgents = async (db: AnyDrizzleDatabase, cloudUrl: string): Promise<Agent[]> => {
+  const descriptors = await fetchRemoteAgentDescriptors(cloudUrl)
+  if (descriptors.length === 0) return []
 
-  const wsBaseUrl = cloudUrl.replace(/^http/, 'ws')
-  const agents = pipelines.map((p) => haystackAgentFromPipeline(p, wsBaseUrl))
+  const agents: Agent[] = descriptors.map((d) => ({
+    ...d,
+    command: null,
+    args: null,
+    authMethod: null,
+    deletedAt: null,
+    defaultHash: null,
+    userId: null,
+  }))
+
   await upsertAgents(db, agents)
   return agents
 }
