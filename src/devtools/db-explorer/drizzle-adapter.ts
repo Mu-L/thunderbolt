@@ -73,7 +73,7 @@ export const createDrizzleExplorerAdapter = (db: AnyDrizzleDatabase): SqliteExpl
   async getObjects(): Promise<DbObject[]> {
     const rows = await db.all(
       sql.raw(
-        `SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle_%' AND name NOT LIKE '__db_explorer_%' AND name NOT LIKE 'ps_%' ORDER BY type, name`,
+        `SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle_%' AND name NOT LIKE '__db_explorer_%' AND (name NOT LIKE 'ps_%' OR name LIKE 'ps_data__%') ORDER BY type, name`,
       ),
     )
 
