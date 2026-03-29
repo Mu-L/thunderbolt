@@ -62,8 +62,10 @@ export const useDbExplorerState = (adapter: SqliteExplorerAdapter) => {
     const load = async () => {
       try {
         const objects = await adapter.getObjects()
+        console.log('[db-explorer] loaded objects:', objects)
         dispatch({ type: 'SET_OBJECTS', objects })
       } catch (err) {
+        console.error('[db-explorer] failed to load objects:', err)
         dispatch({ type: 'SET_ERROR', error: String(err) })
       }
     }
