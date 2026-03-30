@@ -1,9 +1,21 @@
 import { getCorsOrigins, getSettings } from '@/config/settings'
 import { safeErrorHandler } from '@/middleware/error-handling'
-import { validateSafeUrl } from '@/pro/link-preview'
 import { buildQueryString, extractResponseHeaders, filterHeaders } from '@/utils/request'
 import cors from '@elysiajs/cors'
 import { Elysia } from 'elysia'
+
+/** Validates MCP target URLs. Allows localhost (MCP servers run locally) unlike the link preview SSRF check. */
+const validateMcpTargetUrl = (url: string): { valid: boolean; error?: string } => {
+  try {
+    const parsed = new URL(url)
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { valid: false, error: 'Only HTTP and HTTPS URLs are supported' }
+    }
+    return { valid: true }
+  } catch {
+    return { valid: false, error: 'Invalid URL' }
+  }
+}
 
 /** Headers to strip from proxied MCP requests. Keeps Authorization and MCP headers. */
 const mcpRequestDenylist = [
@@ -32,6 +44,41 @@ export const createMcpProxyRoutes = (fetchFn: typeof fetch = globalThis.fetch) =
       }),
     )
     .all(
+      '/',
+      async (ctx) => {
+        const targetBaseUrl = ctx.headers['x-mcp-target-url']
+        if (!targetBaseUrl) {
+          ctx.set.status = 400
+          return new Response('Missing X-Mcp-Target-Url header', { headers: { 'Content-Type': 'text/plain' } })
+        }
+
+        const validation = validateMcpTargetUrl(targetBaseUrl)
+        if (!validation.valid) {
+          ctx.set.status = 400
+          return new Response(validation.error || 'Invalid target URL', { headers: { 'Content-Type': 'text/plain' } })
+        }
+
+        const queryString = buildQueryString(ctx.query)
+        const url = `${targetBaseUrl}${queryString}`
+        const headers = filterHeaders(ctx.headers, mcpRequestDenylist)
+
+        const response = await fetchFn(url, {
+          method: ctx.request.method,
+          headers,
+          body: ctx.request.body as BodyInit,
+        })
+
+        const responseHeaders = extractResponseHeaders(response.headers)
+        responseHeaders.set('cross-origin-resource-policy', 'cross-origin')
+
+        return new Response(response.body, {
+          status: response.status,
+          headers: responseHeaders,
+        })
+      },
+      { parse: 'none' },
+    )
+    .all(
       '/*',
       async (ctx) => {
         const targetBaseUrl = ctx.headers['x-mcp-target-url']
@@ -40,7 +87,7 @@ export const createMcpProxyRoutes = (fetchFn: typeof fetch = globalThis.fetch) =
           return new Response('Missing X-Mcp-Target-Url header', { headers: { 'Content-Type': 'text/plain' } })
         }
 
-        const validation = validateSafeUrl(targetBaseUrl)
+        const validation = validateMcpTargetUrl(targetBaseUrl)
         if (!validation.valid) {
           ctx.set.status = 400
           return new Response(validation.error || 'Invalid target URL', { headers: { 'Content-Type': 'text/plain' } })
