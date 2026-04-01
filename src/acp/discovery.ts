@@ -1,3 +1,4 @@
+import ky from 'ky'
 import { isAgentAvailableOnPlatform } from '@/lib/platform'
 import { isAgentTypeEnabled } from '@/lib/enabled-agent-types'
 import { isAgentAvailable } from '@/acp/stdio-stream'
@@ -68,11 +69,7 @@ export const discoverAndSeedLocalAgents = async (db: AnyDrizzleDatabase): Promis
 
 const fetchRemoteAgentDescriptors = async (cloudUrl: string): Promise<RemoteAgentDescriptor[]> => {
   try {
-    const response = await fetch(`${cloudUrl}/agents`)
-    if (!response.ok) {
-      return []
-    }
-    const data = (await response.json()) as { data?: RemoteAgentDescriptor[] }
+    const data = await ky.get(`${cloudUrl}/agents`).json<{ data?: RemoteAgentDescriptor[] }>()
     return data.data ?? []
   } catch {
     return []
