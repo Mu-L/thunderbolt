@@ -1,3 +1,4 @@
+import type { Auth } from '@/auth/elysia-plugin'
 import { Elysia, t } from 'elysia'
 import { getSettings, getHaystackPipelines } from '@/config/settings'
 import { HaystackClient } from './client'
@@ -8,7 +9,7 @@ import { createHaystackWebSocketHandler } from './websocket-handler'
  * Discovery is handled by the generic /agents endpoint.
  * Returns an empty router if Haystack is not configured.
  */
-export const createHaystackRoutes = (fetchFn: typeof fetch = globalThis.fetch) => {
+export const createHaystackRoutes = (auth: Auth, fetchFn: typeof fetch = globalThis.fetch) => {
   const settings = getSettings()
   const pipelines = getHaystackPipelines(settings)
 
@@ -17,6 +18,24 @@ export const createHaystackRoutes = (fetchFn: typeof fetch = globalThis.fetch) =
   if (pipelines.length === 0) {
     return router
   }
+
+  router
+    .derive(async ({ request, set }) => {
+      const session = await auth.api.getSession({ headers: request.headers })
+
+      if (!session) {
+        set.status = 401
+        return { user: null }
+      }
+
+      return { user: session.user }
+    })
+    .onBeforeHandle(({ user: sessionUser, set }) => {
+      if (!sessionUser) {
+        set.status = 401
+        return { error: 'Unauthorized' }
+      }
+    })
 
   const clients = new Map(
     pipelines.map((p) => [
