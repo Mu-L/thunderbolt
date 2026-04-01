@@ -110,7 +110,7 @@ test.describe('No Console Errors', () => {
     await page.getByText('Automations').click()
     await page.waitForTimeout(1000)
 
-    await page.locator('[data-sidebar="sidebar"]').getByText('New Chat').click()
+    await page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'New Chat' }).click()
     // New chat must fully render
     await expect(page.locator('textarea')).toBeVisible({ timeout: 15000 })
 

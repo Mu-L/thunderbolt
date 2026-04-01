@@ -16,7 +16,7 @@ test.describe('Settings Page', () => {
   })
 
   test('settings page has navigation back to chat', async ({ page }) => {
-    const newChat = page.locator('[data-sidebar="sidebar"]').getByText('New Chat')
+    const newChat = page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'New Chat' })
     await expect(newChat).toBeVisible()
   })
 })
