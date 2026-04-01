@@ -54,6 +54,7 @@ export class HaystackClient {
       }
 
       if (response.status === pipelineNotReadyStatus && attempt < maxRetryAttempts - 1) {
+        void response.body?.cancel()
         await this.abortableSleep(this.retryBaseDelayMs * (attempt + 1), init.signal)
         continue
       }
