@@ -31,6 +31,16 @@ type AcpSessionResult = {
   sessionState: AgentSessionState
 }
 
+/** Safely parse a JSON string, returning a fallback on malformed data. */
+const safeParseArgs = (args: string | null): string[] | undefined => {
+  if (!args) return undefined
+  try {
+    return JSON.parse(args)
+  } catch {
+    return []
+  }
+}
+
 /** Convert an Agent DB row to an AgentConfig runtime object. */
 const toAgentConfig = (agent: Agent): AgentConfig => ({
   id: agent.id,
@@ -38,7 +48,7 @@ const toAgentConfig = (agent: Agent): AgentConfig => ({
   type: agent.type as AgentConfig['type'],
   transport: agent.transport as AgentConfig['transport'],
   command: agent.command ?? undefined,
-  args: agent.args ? JSON.parse(agent.args) : undefined,
+  args: safeParseArgs(agent.args),
   url: agent.url ?? undefined,
   isSystem: agent.isSystem === 1,
   enabled: agent.enabled === 1,
