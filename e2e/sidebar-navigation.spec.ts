@@ -7,7 +7,7 @@ test.describe('Sidebar Navigation', () => {
   })
 
   test('New Chat button is visible and clickable', async ({ page }) => {
-    const newChat = page.getByText('New Chat')
+    const newChat = page.locator('[data-sidebar="sidebar"]').getByText('New Chat')
     await expect(newChat).toBeVisible()
     await newChat.click()
     await page.waitForTimeout(500)

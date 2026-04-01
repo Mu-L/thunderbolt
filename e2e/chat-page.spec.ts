@@ -31,7 +31,7 @@ test.describe('Chat Page Layout', () => {
   })
 
   test('sidebar shows navigation items', async ({ page }) => {
-    await expect(page.getByText('New Chat')).toBeVisible()
+    await expect(page.locator('[data-sidebar="sidebar"]').getByText('New Chat')).toBeVisible()
     await expect(page.getByText('Automations')).toBeVisible()
     await expect(page.getByText('Settings')).toBeVisible()
   })
