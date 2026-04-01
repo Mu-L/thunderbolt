@@ -15,15 +15,15 @@ const createMockWebSocket = (readyState = wsOpen): MockWebSocket => {
     readyState,
     send: mock(() => {}),
     close: mock(() => {}),
-    addEventListener: (event: string, handler: Function) => {
+    addEventListener: ((event: string, handler: Function) => {
       if (!listeners.has(event)) {
         listeners.set(event, new Set())
       }
       listeners.get(event)!.add(handler)
-    },
-    removeEventListener: (event: string, handler: Function) => {
+    }) as WebSocketLike['addEventListener'],
+    removeEventListener: ((event: string, handler: Function) => {
       listeners.get(event)?.delete(handler)
-    },
+    }) as WebSocketLike['removeEventListener'],
     _trigger: (event: string, data?: unknown) => {
       listeners.get(event)?.forEach((h) => h(data ?? {}))
     },

@@ -1,13 +1,26 @@
 import { ndJsonStream, type Stream } from '@agentclientprotocol/sdk'
 
+type WebSocketMessageEvent = { data: string | ArrayBuffer }
+type WebSocketCloseEvent = { code?: number; reason?: string }
+
+type WebSocketEventMap = {
+  open: Event | Record<string, never>
+  message: WebSocketMessageEvent
+  close: WebSocketCloseEvent
+  error: Event | Record<string, never>
+}
+
 /**
  * Abstraction for WebSocket connections to allow testing.
  */
 export type WebSocketLike = {
   send: (data: string | ArrayBuffer) => void
   close: () => void
-  addEventListener: (event: string, handler: (event: { data: string | ArrayBuffer }) => void) => void
-  removeEventListener: (event: string, handler: (event: { data: string | ArrayBuffer }) => void) => void
+  addEventListener: <K extends keyof WebSocketEventMap>(event: K, handler: (event: WebSocketEventMap[K]) => void) => void
+  removeEventListener: <K extends keyof WebSocketEventMap>(
+    event: K,
+    handler: (event: WebSocketEventMap[K]) => void,
+  ) => void
   readyState: number
 }
 
@@ -44,7 +57,7 @@ export const connectWithReconnect = ({ onConnect, onGiveUp, createWebSocket }: R
     })
 
     ws.addEventListener('close', (event) => {
-      if ((event as { code?: number }).code === 1000) {
+      if (event.code === 1000) {
         return
       }
       if (retries >= maxRetries) {

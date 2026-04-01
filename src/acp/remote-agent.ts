@@ -44,7 +44,7 @@ export const connectToRemoteAgent = async ({
       resolve()
     }
 
-    const onError = (_event: { data: string | ArrayBuffer }) => {
+    const onError = () => {
       ws.removeEventListener('open', onOpen)
       ws.removeEventListener('error', onError)
       reject(new Error(`Failed to connect to agent "${agentConfig.name}" at ${url}`))
