@@ -1,6 +1,6 @@
 import { and, desc, eq, isNull } from 'drizzle-orm'
 import type { AnyDrizzleDatabase } from '../db/database-interface'
-import { agentsTable } from '../db/tables'
+import { agentsTable, settingsTable } from '../db/tables'
 import { defaultAgentBuiltIn } from '../defaults/agents'
 import { isAgentTypeEnabled } from '@/lib/enabled-agent-types'
 import type { Agent, DrizzleQueryWithPromise } from '@/types'
@@ -57,7 +57,6 @@ export const getAgent = async (db: AnyDrizzleDatabase, id: string): Promise<Agen
  */
 export const getSelectedAgent = async (db: AnyDrizzleDatabase): Promise<Agent | null> => {
   try {
-    const { settingsTable } = await import('../db/tables')
     const settings = await db.select().from(settingsTable).where(eq(settingsTable.key, 'selected_agent'))
 
     if (settings.length > 0 && settings[0].value) {
