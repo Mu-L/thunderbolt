@@ -188,7 +188,8 @@ export const getHaystackPipelines = (settings: Settings): import('@/haystack/typ
   if (settings.haystackPipelines) {
     try {
       return JSON.parse(settings.haystackPipelines)
-    } catch {
+    } catch (error) {
+      console.error('Failed to parse HAYSTACK_PIPELINES — check JSON syntax:', error)
       return []
     }
   }

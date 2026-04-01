@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import type { Settings } from './settings'
 import {
   clearSettingsCache,
   getEnabledAgentIds,
@@ -8,39 +9,42 @@ import {
   getSettings,
 } from './settings'
 
+/** Create a partial Settings object for unit-testing utility functions that only read specific fields. */
+const partialSettings = <T extends Partial<Settings>>(overrides: T) => overrides as Settings
+
 describe('Config Settings', () => {
   describe('getCorsOriginsList', () => {
     it('should split comma-separated origins', () => {
       const settings = { corsOrigins: 'http://localhost:3000,https://example.com,https://app.example.com' }
-      const origins = getCorsOriginsList(settings as any)
+      const origins = getCorsOriginsList(partialSettings(settings))
 
       expect(origins).toEqual(['http://localhost:3000', 'https://example.com', 'https://app.example.com'])
     })
 
     it('should handle single origin', () => {
       const settings = { corsOrigins: 'http://localhost:3000' }
-      const origins = getCorsOriginsList(settings as any)
+      const origins = getCorsOriginsList(partialSettings(settings))
 
       expect(origins).toEqual(['http://localhost:3000'])
     })
 
     it('should trim whitespace from origins', () => {
       const settings = { corsOrigins: ' http://localhost:3000 , https://example.com , https://app.example.com ' }
-      const origins = getCorsOriginsList(settings as any)
+      const origins = getCorsOriginsList(partialSettings(settings))
 
       expect(origins).toEqual(['http://localhost:3000', 'https://example.com', 'https://app.example.com'])
     })
 
     it('should filter out empty origins', () => {
       const settings = { corsOrigins: 'http://localhost:3000,,https://example.com,' }
-      const origins = getCorsOriginsList(settings as any)
+      const origins = getCorsOriginsList(partialSettings(settings))
 
       expect(origins).toEqual(['http://localhost:3000', 'https://example.com'])
     })
 
     it('should handle empty string', () => {
       const settings = { corsOrigins: '' }
-      const origins = getCorsOriginsList(settings as any)
+      const origins = getCorsOriginsList(partialSettings(settings))
 
       expect(origins).toEqual([])
     })
@@ -49,35 +53,35 @@ describe('Config Settings', () => {
   describe('getWaitlistAutoApproveDomains', () => {
     it('should split comma-separated domains', () => {
       const settings = { waitlistAutoApproveDomains: 'mozilla.org,thunderbird.net,mozilla.ai' }
-      const domains = getWaitlistAutoApproveDomains(settings as any)
+      const domains = getWaitlistAutoApproveDomains(partialSettings(settings))
 
       expect(domains).toEqual(['mozilla.org', 'thunderbird.net', 'mozilla.ai'])
     })
 
     it('should handle single domain', () => {
       const settings = { waitlistAutoApproveDomains: 'mozilla.org' }
-      const domains = getWaitlistAutoApproveDomains(settings as any)
+      const domains = getWaitlistAutoApproveDomains(partialSettings(settings))
 
       expect(domains).toEqual(['mozilla.org'])
     })
 
     it('should trim whitespace and lowercase domains', () => {
       const settings = { waitlistAutoApproveDomains: ' Mozilla.ORG , Thunderbird.NET ' }
-      const domains = getWaitlistAutoApproveDomains(settings as any)
+      const domains = getWaitlistAutoApproveDomains(partialSettings(settings))
 
       expect(domains).toEqual(['mozilla.org', 'thunderbird.net'])
     })
 
     it('should filter out empty domains', () => {
       const settings = { waitlistAutoApproveDomains: 'mozilla.org,,thunderbird.net,' }
-      const domains = getWaitlistAutoApproveDomains(settings as any)
+      const domains = getWaitlistAutoApproveDomains(partialSettings(settings))
 
       expect(domains).toEqual(['mozilla.org', 'thunderbird.net'])
     })
 
     it('should handle empty string', () => {
       const settings = { waitlistAutoApproveDomains: '' }
-      const domains = getWaitlistAutoApproveDomains(settings as any)
+      const domains = getWaitlistAutoApproveDomains(partialSettings(settings))
 
       expect(domains).toEqual([])
     })
@@ -86,35 +90,35 @@ describe('Config Settings', () => {
   describe('getCorsMethodsList', () => {
     it('should split comma-separated methods', () => {
       const settings = { corsAllowMethods: 'GET,POST,PUT,DELETE,PATCH,OPTIONS' }
-      const methods = getCorsMethodsList(settings as any)
+      const methods = getCorsMethodsList(partialSettings(settings))
 
       expect(methods).toEqual(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
     })
 
     it('should handle single method', () => {
       const settings = { corsAllowMethods: 'GET' }
-      const methods = getCorsMethodsList(settings as any)
+      const methods = getCorsMethodsList(partialSettings(settings))
 
       expect(methods).toEqual(['GET'])
     })
 
     it('should trim whitespace from methods', () => {
       const settings = { corsAllowMethods: ' GET , POST , PUT ' }
-      const methods = getCorsMethodsList(settings as any)
+      const methods = getCorsMethodsList(partialSettings(settings))
 
       expect(methods).toEqual(['GET', 'POST', 'PUT'])
     })
 
     it('should filter out empty methods', () => {
       const settings = { corsAllowMethods: 'GET,,POST,' }
-      const methods = getCorsMethodsList(settings as any)
+      const methods = getCorsMethodsList(partialSettings(settings))
 
       expect(methods).toEqual(['GET', 'POST'])
     })
 
     it('should handle empty string', () => {
       const settings = { corsAllowMethods: '' }
-      const methods = getCorsMethodsList(settings as any)
+      const methods = getCorsMethodsList(partialSettings(settings))
 
       expect(methods).toEqual([])
     })
@@ -122,33 +126,31 @@ describe('Config Settings', () => {
 
   describe('getEnabledAgentIds', () => {
     it('should return null when enabledAgents is empty', () => {
-      const result = getEnabledAgentIds({ enabledAgents: '' } as any)
+      const result = getEnabledAgentIds(partialSettings({ enabledAgents: '' }))
       expect(result).toBeNull()
     })
 
     it('should parse comma-separated agent IDs', () => {
-      const result = getEnabledAgentIds({
-        enabledAgents: 'agent-haystack-docs,agent-haystack-legal',
-      } as any)
+      const result = getEnabledAgentIds(partialSettings({ enabledAgents: 'agent-haystack-docs,agent-haystack-legal' }))
       expect(result).toEqual(['agent-haystack-docs', 'agent-haystack-legal'])
     })
 
     it('should parse a single agent ID', () => {
-      const result = getEnabledAgentIds({ enabledAgents: 'agent-haystack-docs' } as any)
+      const result = getEnabledAgentIds(partialSettings({ enabledAgents: 'agent-haystack-docs' }))
       expect(result).toEqual(['agent-haystack-docs'])
     })
 
     it('should trim whitespace from agent IDs', () => {
-      const result = getEnabledAgentIds({
-        enabledAgents: ' agent-haystack-docs , agent-haystack-legal ',
-      } as any)
+      const result = getEnabledAgentIds(
+        partialSettings({ enabledAgents: ' agent-haystack-docs , agent-haystack-legal ' }),
+      )
       expect(result).toEqual(['agent-haystack-docs', 'agent-haystack-legal'])
     })
 
     it('should filter out empty entries', () => {
-      const result = getEnabledAgentIds({
-        enabledAgents: 'agent-haystack-docs,,agent-haystack-legal,',
-      } as any)
+      const result = getEnabledAgentIds(
+        partialSettings({ enabledAgents: 'agent-haystack-docs,,agent-haystack-legal,' }),
+      )
       expect(result).toEqual(['agent-haystack-docs', 'agent-haystack-legal'])
     })
   })

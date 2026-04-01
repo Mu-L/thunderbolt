@@ -60,6 +60,8 @@ export const createHaystackRoutes = (fetchFn: typeof fetch = globalThis.fetch) =
         headers['content-disposition'] = contentDisposition
       }
 
+      headers['x-content-type-options'] = 'nosniff'
+
       return new Response(response.body, { headers })
     },
     {
