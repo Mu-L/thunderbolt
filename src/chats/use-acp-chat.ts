@@ -1,10 +1,13 @@
 import { createMessageAccumulator, type MessageAccumulator } from '@/acp/message-accumulator'
 import { trackEvent } from '@/lib/posthog'
 import type { HaystackDocumentMeta, HaystackReferenceMeta, SaveMessagesFunction, ThunderboltUIMessage } from '@/types'
+import type { SessionNotification } from '@agentclientprotocol/sdk'
 import { v7 as uuidv7 } from 'uuid'
 import { useChatStore } from './chat-store'
 import { ensureAcpConnection } from './create-acp-session'
 import { useCallback, useRef } from 'react'
+
+type SessionUpdate = SessionNotification['update']
 
 export const maxRetries = 3
 
@@ -97,13 +100,13 @@ const activeAccumulators = new Map<string, MessageAccumulator>()
 /**
  * Handle an ACP session update by accumulating it into the current assistant message.
  */
-export const handleSessionUpdate = (sessionId: string, update: unknown) => {
+export const handleSessionUpdate = (sessionId: string, update: SessionUpdate) => {
   const accumulator = activeAccumulators.get(sessionId)
   if (!accumulator) {
     return
   }
 
-  const updatedMessage = accumulator.handleUpdate(update as Parameters<MessageAccumulator['handleUpdate']>[0])
+  const updatedMessage = accumulator.handleUpdate(update)
   useChatStore.getState().updateLastMessage(sessionId, updatedMessage)
 }
 

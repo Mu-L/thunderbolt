@@ -22,6 +22,7 @@ import type {
   tasksTable,
   triggersTable,
 } from './db/tables'
+import type { HaystackDocumentMeta, HaystackReferenceMeta } from '../shared/haystack-types'
 
 export type InitData = {
   db: AnyDrizzleDatabase
@@ -92,19 +93,7 @@ export type AutomationRun = {
   isAutomationDeleted: boolean
 }
 
-export type HaystackDocumentMeta = {
-  id: string
-  content: string
-  score: number
-  file: { id: string; name: string }
-}
-
-export type HaystackReferenceMeta = {
-  position: number
-  fileId: string
-  fileName: string
-  pageNumber?: number
-}
+export type { HaystackDocumentMeta, HaystackFile, HaystackReferenceMeta } from '../shared/haystack-types'
 
 export type UIMessageMetadata = {
   modelId?: string
