@@ -154,7 +154,7 @@ export const clearSettingsCache = (): void => {
 /**
  * Derived properties similar to the Python version
  */
-export const getCorsOriginsList = (settings: Settings): string[] => {
+export const getCorsOriginsList = (settings: Pick<Settings, 'corsOrigins'>): string[] => {
   return settings.corsOrigins
     .split(',')
     .map((origin) => origin.trim())
@@ -164,11 +164,11 @@ export const getCorsOriginsList = (settings: Settings): string[] => {
 /**
  * Get CORS origins as either a RegExp pattern or array of strings
  */
-export const getCorsOrigins = (settings: Settings): RegExp | string[] => {
+export const getCorsOrigins = (settings: Pick<Settings, 'corsOriginRegex' | 'corsOrigins'>): RegExp | string[] => {
   return settings.corsOriginRegex ? new RegExp(settings.corsOriginRegex) : getCorsOriginsList(settings)
 }
 
-export const getCorsMethodsList = (settings: Settings): string[] => {
+export const getCorsMethodsList = (settings: Pick<Settings, 'corsAllowMethods'>): string[] => {
   return settings.corsAllowMethods
     .split(',')
     .map((method) => method.trim())
@@ -226,7 +226,7 @@ export const getHaystackPipelines = (settings: Settings): HaystackPipelineConfig
  * Get the list of enabled agent IDs from ENABLED_AGENTS.
  * Returns null if unset (all agents enabled).
  */
-export const getEnabledAgentIds = (settings: Settings): string[] | null => {
+export const getEnabledAgentIds = (settings: Pick<Settings, 'enabledAgents'>): string[] | null => {
   if (!settings.enabledAgents) return null
   return settings.enabledAgents
     .split(',')
@@ -235,7 +235,7 @@ export const getEnabledAgentIds = (settings: Settings): string[] | null => {
 }
 
 /** Parse comma-separated auto-approved domains into a list */
-export const getWaitlistAutoApproveDomains = (settings: Settings): string[] => {
+export const getWaitlistAutoApproveDomains = (settings: Pick<Settings, 'waitlistAutoApproveDomains'>): string[] => {
   return settings.waitlistAutoApproveDomains
     .split(',')
     .map((domain) => domain.trim().toLowerCase())
