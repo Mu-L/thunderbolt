@@ -1,5 +1,5 @@
 {
-  "id": "4bd707d6-6a12-4d58-8879-a413164af3cb",
+  "id": "0e4e0a3b-69c6-4be8-961b-589fd6b6a1e2",
   "prevId": "ecf5ee13-2450-47c3-8f58-384d5f801407",
   "version": "7",
   "dialect": "postgresql",
@@ -715,12 +715,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "status": {
-          "name": "status",
-          "type": "text",
+        "trusted": {
+          "name": "trusted",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": "'TRUSTED'"
+          "default": false
         },
         "public_key": {
           "name": "public_key",
@@ -1746,6 +1746,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "canary_secret_hash": {
+          "name": "canary_secret_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
