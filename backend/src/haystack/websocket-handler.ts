@@ -52,6 +52,13 @@ export const createHaystackWebSocketHandler = (pipelineConfig: HaystackPipelineC
         if (!isCloseError) {
           console.error('Unexpected error in WebSocket pipe loop:', error)
         }
+      } finally {
+        // Ensure cleanup even if the WebSocket close event was missed
+        const state = connections.get(ws.id)
+        if (state) {
+          state.cleanup()
+          connections.delete(ws.id)
+        }
       }
     }
     pipeLoop()
