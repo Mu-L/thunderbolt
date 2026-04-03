@@ -10,13 +10,15 @@
  *   mock.module('@/lib/platform', () => ({ ...webPlatformMock, isTauri: () => true }))
  */
 
-const PR_PREVIEW_REGEX = /^thunderbolt-pr-\d+\.onrender\.com$/
+const prPreviewRegex = /^thunderbolt-pr-\d+\.onrender\.com$/
 
 export const webPlatformMock = {
-  prPreviewHostRegex: PR_PREVIEW_REGEX,
+  prPreviewHostRegex: prPreviewRegex,
   isPrPreview: () => {
-    if (typeof window === 'undefined') return false
-    return PR_PREVIEW_REGEX.test(window.location.hostname)
+    if (typeof window === 'undefined') {
+      return false
+    }
+    return prPreviewRegex.test(window.location.hostname)
   },
   isTauri: () => false,
   getPlatform: () => 'web' as const,
