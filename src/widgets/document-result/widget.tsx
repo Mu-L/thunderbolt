@@ -11,7 +11,9 @@ type DocumentResultWidgetProps = {
 
 const getFileIcon = (fileName: string) => {
   const ext = fileName.split('.').pop()?.toLowerCase()
-  if (ext === 'pdf') return FileType2
+  if (ext === 'pdf') {
+    return FileType2
+  }
   return File
 }
 

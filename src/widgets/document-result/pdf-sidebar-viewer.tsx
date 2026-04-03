@@ -14,7 +14,9 @@ type FileType = 'pdf' | 'unsupported'
 
 const getFileType = (fileName: string): FileType => {
   const ext = fileName.split('.').pop()?.toLowerCase()
-  if (ext === 'pdf') return 'pdf'
+  if (ext === 'pdf') {
+    return 'pdf'
+  }
   return 'unsupported'
 }
 

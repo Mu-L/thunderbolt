@@ -200,7 +200,7 @@ export default function AgentsSettingsPage() {
       setBusy(agent.registryId, null)
       queryClient.invalidateQueries({ queryKey: ['installed-agents'] })
     }
-  }, [db, queryClient, canInstallLocal, pendingInstallAgent])
+  }, [db, queryClient, pendingInstallAgent])
 
   const handleUninstall = useCallback(
     async (agent: MergedAgent) => {

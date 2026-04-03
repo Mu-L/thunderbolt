@@ -8,7 +8,9 @@ describe('PdfSidebarViewer file type detection', () => {
 
   const getFileType = (fileName: string): 'pdf' | 'unsupported' => {
     const ext = fileName.split('.').pop()?.toLowerCase()
-    if (ext === 'pdf') return 'pdf'
+    if (ext === 'pdf') {
+      return 'pdf'
+    }
     return 'unsupported'
   }
 
