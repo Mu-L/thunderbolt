@@ -15,8 +15,9 @@ const connections = new Map<string, ConnectionState>()
 const encoder = new TextEncoder()
 
 type ElysiaWS = {
-  id: string
+  readonly id: string
   send: (data: string | ArrayBuffer) => void
+  [key: string]: unknown
 }
 
 /**
@@ -87,7 +88,7 @@ export const createHaystackWebSocketHandler = (pipelineConfig: HaystackPipelineC
     state.writer.write(encoder.encode(data + '\n')).catch(() => {})
   },
 
-  close: (ws: ElysiaWS) => {
+  close: (ws: ElysiaWS, _code?: number, _reason?: string) => {
     const state = connections.get(ws.id)
     state?.cleanup()
     connections.delete(ws.id)

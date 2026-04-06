@@ -73,8 +73,10 @@ export const createHaystackRoutes = (auth: Auth, fetchFn: typeof fetch = globalT
     const baseHandler = createHaystackWebSocketHandler(pipeline, client)
 
     router.ws(`/ws/${pipeline.slug}`, {
+      query: t.Object({ ticket: t.Optional(t.String()) }),
+      body: t.String(),
       open: (ws) => {
-        const ticketId = (ws as any).data?.query?.ticket as string | undefined
+        const ticketId = ws.data.query?.ticket
         if (!ticketId) {
           console.warn(`[haystack] WebSocket rejected — no ticket for ${pipeline.slug}`)
           ws.close(4001, 'Unauthorized')
@@ -86,10 +88,14 @@ export const createHaystackRoutes = (auth: Auth, fetchFn: typeof fetch = globalT
           ws.close(4001, 'Unauthorized')
           return
         }
-        baseHandler.open(ws as any)
+        baseHandler.open(ws)
       },
-      message: baseHandler.message as any,
-      close: baseHandler.close as any,
+      message: (ws, message) => {
+        baseHandler.message(ws, message)
+      },
+      close: (ws, code, reason) => {
+        baseHandler.close(ws, code, reason)
+      },
     })
   }
 
