@@ -24,6 +24,7 @@ import type {
 
 export type InitData = {
   db: AnyDrizzleDatabase
+  cloudUrl: string
   tray: TrayIcon | undefined
   window: Window | undefined
   sideviewType: SideviewType | null
