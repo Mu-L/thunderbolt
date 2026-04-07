@@ -204,7 +204,7 @@ export const aiFetchStreamingResponse = async ({
       const prefix = count > 0 ? `${basePrefix}_${count + 1}` : basePrefix
       usedPrefixes.set(basePrefix, count + 1)
 
-      let toolCount = 0
+      const beforeCount = Object.keys(toolset).length
       for (const [name, tool] of Object.entries(mcpTools)) {
         const prefixedName = `${prefix}_${name}`
         if (toolset[prefixedName]) {
@@ -214,10 +214,10 @@ export const aiFetchStreamingResponse = async ({
           continue
         }
         toolset[prefixedName] = tool as Tool
-        toolCount++
       }
-      if (toolCount > 0) {
-        mcpServerEntries.push(`- ${prefix} (${toolCount} tools)`)
+      const addedCount = Object.keys(toolset).length - beforeCount
+      if (addedCount > 0) {
+        mcpServerEntries.push(`- ${prefix} (${addedCount} tools)`)
       }
     }
   } else {

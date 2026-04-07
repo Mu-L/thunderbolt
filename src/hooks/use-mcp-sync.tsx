@@ -21,11 +21,7 @@ export const useMcpSync = () => {
   const db = useDatabase()
   const { servers, addServer, removeServer, updateServerStatus } = useMCP()
   const serversRef = useRef(servers)
-
-  // Keep ref in sync with state to avoid including `servers` in the effect dep array
-  useEffect(() => {
-    serversRef.current = servers
-  }, [servers])
+  serversRef.current = servers
 
   const { data: dbServers = [] } = useQuery({
     queryKey: ['mcp-servers'],

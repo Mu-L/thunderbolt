@@ -390,8 +390,7 @@ export const useMcpServersPageState = () => {
     if (!mcpServer) {
       return null
     }
-    // errorMessage field is added by provider-integration PR — safely access until then
-    return ('errorMessage' in mcpServer ? (mcpServer.errorMessage as string) : null) ?? mcpServer.error?.message ?? null
+    return mcpServer.errorMessage ?? mcpServer.error?.message ?? null
   }
 
   const formatServerTitle = (url: string) => {
