@@ -1,7 +1,7 @@
 import type { Auth } from '@/auth/elysia-plugin'
+import { createAuthMacro } from '@/auth/elysia-plugin'
 import { getCorsOrigins, getSettings } from '@/config/settings'
 import { safeErrorHandler } from '@/middleware/error-handling'
-import { createSessionGuard } from '@/middleware/session-guard'
 import { createSafeFetch, validateSafeUrl } from '@/utils/url-validation'
 import { buildQueryString, extractResponseHeaders, filterHeaders } from '@/utils/request'
 import cors from '@elysiajs/cors'
@@ -131,7 +131,7 @@ export const createMcpProxyRoutes = (auth: Auth, fetchFn: typeof fetch = globalT
         exposeHeaders: settings.corsExposeHeaders,
       }),
     )
-    .use(createSessionGuard(auth))
+    .use(createAuthMacro(auth))
     .all(
       '/',
       async (ctx) => {
@@ -142,7 +142,7 @@ export const createMcpProxyRoutes = (auth: Auth, fetchFn: typeof fetch = globalT
         }
         return handleProxy(targetBaseUrl, '', ctx, safeFetchFn)
       },
-      { parse: 'none' },
+      { auth: true, parse: 'none' },
     )
     .all(
       '/*',
@@ -154,6 +154,6 @@ export const createMcpProxyRoutes = (auth: Auth, fetchFn: typeof fetch = globalT
         }
         return handleProxy(targetBaseUrl, ctx.params['*'] || '', ctx, safeFetchFn)
       },
-      { parse: 'none' },
+      { auth: true, parse: 'none' },
     )
 }
