@@ -235,21 +235,30 @@ export const MCPProvider = ({ children }: { children: ReactNode }) => {
       })
       const provider = result.authProvider as McpOAuthClientProvider | undefined
       if (!provider) {
+        await result.transport.close()
         return { error: 'Server does not require OAuth' } as const
       }
 
-      transportRefs.current.set(serverId, result.transport)
-
-      // This triggers OAuth discovery → redirectToAuthorization (stores pendingAuthUrl) → throws
       try {
         await createMCPClient({ transport: result.transport })
+        await result.transport.close()
         return { error: 'Server connected without requiring OAuth' } as const
       } catch {
         // Expected — SDK discovered OAuth and stored pendingAuthUrl
       }
 
+      // Only store transport on the success path (OAuth discovery completed)
+      transportRefs.current.set(serverId, result.transport)
       return { transport: result.transport, authProvider: provider } as const
-    })().catch((err) => ({ error: err instanceof Error ? err.message : 'OAuth discovery failed' }) as const)
+    })().catch(async (err) => {
+      // Clean up any transport that may have been stored before the error
+      const storedTransport = transportRefs.current.get(serverId)
+      if (storedTransport) {
+        await storedTransport.close()
+        transportRefs.current.delete(serverId)
+      }
+      return { error: err instanceof Error ? err.message : 'OAuth discovery failed' } as const
+    })
 
     if ('error' in discoveryResult) {
       setServers((prev) =>
