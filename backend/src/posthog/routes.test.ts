@@ -1,5 +1,5 @@
 import type { Settings } from '@/config/settings'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
+import { beforeEach, describe, expect, it, mock } from 'bun:test'
 import { Elysia } from 'elysia'
 import { createPostHogRoutes } from './routes'
 
@@ -129,12 +129,13 @@ describe('PostHog Routes', () => {
       )
 
       expect(response.status).toBe(429)
-      expect(response.headers.get('retry-after')).toBeTruthy()
+      expect(Number(response.headers.get('retry-after'))).toBeGreaterThan(0)
+      expect(response.headers.get('ratelimit-remaining')).toBe('0')
       const body = await response.json()
       expect(body.error).toBe('Too many requests. Please try again later.')
     })
 
-    it('should include RateLimit-* headers on normal requests', async () => {
+    it('should include RateLimit-* headers with correct values on normal requests', async () => {
       const app = createApp()
       const response = await app.handle(
         new Request('http://localhost/posthog/batch', {
@@ -145,8 +146,88 @@ describe('PostHog Routes', () => {
 
       expect(response.status).toBe(200)
       expect(response.headers.get('ratelimit-limit')).toBe('60')
-      expect(response.headers.get('ratelimit-remaining')).toBeTruthy()
-      expect(response.headers.get('ratelimit-reset')).toBeTruthy()
+      expect(response.headers.get('ratelimit-remaining')).toBe('59')
+      expect(Number(response.headers.get('ratelimit-reset'))).toBeGreaterThanOrEqual(0)
+    })
+
+    it('should rate limit IPs independently', async () => {
+      const app = createApp()
+
+      for (let i = 0; i < 60; i++) {
+        await app.handle(
+          new Request('http://localhost/posthog/batch', {
+            method: 'POST',
+            headers: { 'CF-Connecting-IP': '10.0.0.10' },
+          }),
+        )
+      }
+
+      const blockedResponse = await app.handle(
+        new Request('http://localhost/posthog/batch', {
+          method: 'POST',
+          headers: { 'CF-Connecting-IP': '10.0.0.10' },
+        }),
+      )
+      expect(blockedResponse.status).toBe(429)
+
+      const allowedResponse = await app.handle(
+        new Request('http://localhost/posthog/batch', {
+          method: 'POST',
+          headers: { 'CF-Connecting-IP': '10.0.0.11' },
+        }),
+      )
+      expect(allowedResponse.status).toBe(200)
+    })
+  })
+
+  describe('proxy behavior', () => {
+    it('should set cross-origin-resource-policy header on proxied responses', async () => {
+      const app = createApp()
+      const response = await app.handle(
+        new Request('http://localhost/posthog/batch', {
+          method: 'POST',
+          headers: { 'CF-Connecting-IP': '10.0.0.4' },
+        }),
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('cross-origin-resource-policy')).toBe('cross-origin')
+    })
+
+    it('should not forward denylist headers to upstream', async () => {
+      const app = createApp()
+      await app.handle(
+        new Request('http://localhost/posthog/batch', {
+          method: 'POST',
+          headers: {
+            'CF-Connecting-IP': '10.0.0.5',
+            Authorization: 'Bearer secret-token',
+            Cookie: 'session=abc123',
+          },
+        }),
+      )
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit]
+      const forwardedHeaders = fetchOptions.headers as Record<string, string>
+      expect(forwardedHeaders.authorization).toBeUndefined()
+      expect(forwardedHeaders.cookie).toBeUndefined()
+    })
+
+    it('should forward upstream error status codes', async () => {
+      const errorFetch = mock(() =>
+        Promise.resolve(new Response('Internal Server Error', { status: 500 })),
+      )
+      const app = createApp(errorFetch as unknown as typeof fetch)
+
+      const response = await app.handle(
+        new Request('http://localhost/posthog/batch', {
+          method: 'POST',
+          headers: { 'CF-Connecting-IP': '10.0.0.6' },
+        }),
+      )
+
+      expect(response.status).toBe(500)
     })
   })
 

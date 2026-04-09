@@ -1280,7 +1280,7 @@ describe('Link Preview Routes', () => {
       expect(response.headers.get('content-type')).toBe('image/png; charset=utf-8')
     })
 
-    it('should include Content-Security-Policy header on proxied images', async () => {
+    it('should include security headers on proxied images', async () => {
       const imageUrl = 'https://example.com/image.png'
 
       mockFetch.mockImplementation(() => Promise.resolve(createMockImageResponse('image/png')))
@@ -1291,18 +1291,6 @@ describe('Link Preview Routes', () => {
 
       expect(response.status).toBe(200)
       expect(response.headers.get('content-security-policy')).toBe("script-src 'none'; object-src 'none'")
-    })
-
-    it('should include X-Content-Type-Options: nosniff header on proxied images', async () => {
-      const imageUrl = 'https://example.com/image.jpg'
-
-      mockFetch.mockImplementation(() => Promise.resolve(createMockImageResponse('image/jpeg')))
-
-      const response = await app.handle(
-        new Request(`http://localhost/link-preview/proxy-image/${imageUrl}`, { method: 'GET' }),
-      )
-
-      expect(response.status).toBe(200)
       expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     })
 
