@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import {
   clearSettingsCache,
-  getCorsOrigins,
   getWaitlistAutoApproveDomains,
   getCorsMethodsList,
   getCorsOriginsList,
@@ -47,44 +46,8 @@ describe('Config Settings', () => {
     })
   })
 
-  describe('getCorsOrigins', () => {
-    it('should include explicit origins list', () => {
-      const settings = {
-        corsOrigins: 'https://app.example.com,https://other.example.com',
-        corsOriginRegex: null,
-      }
-      const origins = getCorsOrigins(settings)
-
-      expect(origins).toEqual(['https://app.example.com', 'https://other.example.com'])
-    })
-
-    it('should include regex when corsOriginRegex is set', () => {
-      const regex = /^(tauri:\/\/localhost|http:\/\/tauri\.localhost)$/
-      const settings = {
-        corsOrigins: 'https://app.example.com',
-        corsOriginRegex: regex,
-      }
-      const origins = getCorsOrigins(settings)
-
-      expect(origins).toHaveLength(2)
-      expect(origins).toContain('https://app.example.com')
-      expect(origins).toContain(regex)
-    })
-
-    it('should return only explicit origins when regex is null', () => {
-      const settings = {
-        corsOrigins: 'https://app.example.com',
-        corsOriginRegex: null,
-      }
-      const origins = getCorsOrigins(settings)
-
-      expect(origins).toEqual(['https://app.example.com'])
-      expect(origins.every((o) => typeof o === 'string')).toBe(true)
-    })
-  })
-
-  describe('CORS default regex security', () => {
-    const CORS_ENV_KEYS = ['CORS_ORIGIN_REGEX', 'CORS_ORIGINS'] as const
+  describe('CORS default security', () => {
+    const CORS_ENV_KEYS = ['CORS_ORIGINS'] as const
 
     let savedEnv: Partial<Record<string, string | undefined>>
 
@@ -107,47 +70,36 @@ describe('Config Settings', () => {
       clearSettingsCache()
     })
 
-    it('should NOT match arbitrary localhost ports in the default regex', () => {
-      delete process.env.CORS_ORIGIN_REGEX
+    it('should NOT match arbitrary localhost ports by default', () => {
+      delete process.env.CORS_ORIGINS
       const settings = getSettings()
-      const regex = settings.corsOriginRegex
 
-      // The default regex should exist (for Tauri)
-      expect(regex).toBeInstanceOf(RegExp)
-
-      // Must NOT match arbitrary localhost ports — this was the vulnerability
-      expect(regex!.test('http://localhost:9999')).toBe(false)
-      expect(regex!.test('http://localhost:4000')).toBe(false)
-      expect(regex!.test('http://localhost:8080')).toBe(false)
+      expect(isOriginAllowed('http://localhost:9999', settings)).toBe(false)
+      expect(isOriginAllowed('http://localhost:4000', settings)).toBe(false)
+      expect(isOriginAllowed('http://localhost:8080', settings)).toBe(false)
     })
 
-    it('should match Tauri origins in the default regex', () => {
-      delete process.env.CORS_ORIGIN_REGEX
+    it('should allow Tauri origins by default', () => {
+      delete process.env.CORS_ORIGINS
       const settings = getSettings()
-      const regex = settings.corsOriginRegex!
 
-      expect(regex.test('tauri://localhost')).toBe(true)
-      expect(regex.test('http://tauri.localhost')).toBe(true)
+      expect(isOriginAllowed('tauri://localhost', settings)).toBe(true)
+      expect(isOriginAllowed('http://tauri.localhost', settings)).toBe(true)
     })
 
-    it('should not match non-Tauri origins in the default regex', () => {
-      delete process.env.CORS_ORIGIN_REGEX
+    it('should allow the dev frontend by default', () => {
+      delete process.env.CORS_ORIGINS
       const settings = getSettings()
-      const regex = settings.corsOriginRegex!
 
-      expect(regex.test('https://evil.com')).toBe(false)
-      expect(regex.test('http://malicious.localhost')).toBe(false)
-      expect(regex.test('http://localhost')).toBe(false)
+      expect(isOriginAllowed('http://localhost:1420', settings)).toBe(true)
     })
 
-    it('should not let default regex silently override explicit CORS_ORIGINS', () => {
-      delete process.env.CORS_ORIGIN_REGEX
-      process.env.CORS_ORIGINS = 'https://myapp.example.com'
+    it('should not match non-Tauri origins by default', () => {
+      delete process.env.CORS_ORIGINS
       const settings = getSettings()
-      const origins = getCorsOrigins(settings)
 
-      // The explicit origin must be present in the result
-      expect(origins).toContain('https://myapp.example.com')
+      expect(isOriginAllowed('https://evil.com', settings)).toBe(false)
+      expect(isOriginAllowed('http://malicious.localhost', settings)).toBe(false)
     })
   })
 
@@ -254,7 +206,6 @@ describe('Config Settings', () => {
           oidcIssuer: '',
           betterAuthUrl: 'http://localhost:8000',
           corsOrigins: 'http://localhost:1420',
-          corsOriginRegex: null,
           corsAllowCredentials: true,
           corsAllowMethods: 'GET,POST,PUT,DELETE,PATCH,OPTIONS',
           corsAllowHeaders:
@@ -362,34 +313,20 @@ describe('Config Settings', () => {
   })
 
   describe('isOriginAllowed', () => {
-    it('returns true when origin matches regex', () => {
-      const settings = { corsOrigins: '', corsOriginRegex: /^http:\/\/localhost:1420$/ }
-      expect(isOriginAllowed('http://localhost:1420', settings)).toBe(true)
-    })
-
-    it('returns false when origin does not match regex', () => {
-      const settings = { corsOrigins: '', corsOriginRegex: /^http:\/\/localhost:1420$/ }
-      expect(isOriginAllowed('http://localhost:9999', settings)).toBe(false)
-    })
-
-    it('returns true when origin is in the explicit origins list', () => {
-      const settings = { corsOrigins: 'http://localhost:1420,https://app.example.com', corsOriginRegex: null }
+    it('returns true for exact match', () => {
+      const settings = { corsOrigins: 'http://localhost:1420,https://app.example.com' }
       expect(isOriginAllowed('https://app.example.com', settings)).toBe(true)
     })
 
-    it('returns false when origin is not in any allowed source', () => {
-      const settings = { corsOrigins: 'http://localhost:1420', corsOriginRegex: null }
+    it('returns false when origin is not in the list', () => {
+      const settings = { corsOrigins: 'http://localhost:1420' }
       expect(isOriginAllowed('http://localhost:9999', settings)).toBe(false)
     })
 
-    it('returns true when origin matches regex but not explicit list', () => {
-      const settings = { corsOrigins: 'https://app.example.com', corsOriginRegex: /^tauri:\/\/localhost$/ }
+    it('returns true for explicit Tauri origins in the default config', () => {
+      const settings = { corsOrigins: 'http://localhost:1420,tauri://localhost,http://tauri.localhost' }
       expect(isOriginAllowed('tauri://localhost', settings)).toBe(true)
-    })
-
-    it('returns true when origin matches explicit list but not regex', () => {
-      const settings = { corsOrigins: 'http://localhost:1420', corsOriginRegex: /^tauri:\/\/localhost$/ }
-      expect(isOriginAllowed('http://localhost:1420', settings)).toBe(true)
+      expect(isOriginAllowed('http://tauri.localhost', settings)).toBe(true)
     })
   })
 

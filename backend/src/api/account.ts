@@ -4,10 +4,7 @@ import { deleteUser, revokeDevice } from '@/dal'
 import type { db as DbType } from '@/db/client'
 import { Elysia } from 'elysia'
 
-/**
- * Account API routes for self-service account deletion.
- * All routes require authentication.
- */
+/** Account API routes. All routes require authentication. */
 export const createAccountRoutes = (auth: Auth, database: typeof DbType) => {
   return new Elysia({ prefix: '/account' })
     .use(createAuthMacro(auth))

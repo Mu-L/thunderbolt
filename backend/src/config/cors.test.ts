@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { getCorsOrigins } from '@/config/settings'
+import { getCorsOriginsList } from '@/config/settings'
 import cors from '@elysiajs/cors'
 import { Elysia } from 'elysia'
 
@@ -8,7 +8,7 @@ import { Elysia } from 'elysia'
  * Verifies that the actual HTTP headers are set correctly for various origins.
  */
 describe('CORS integration', () => {
-  const createTestApp = (corsOrigins: (RegExp | string)[]) =>
+  const createTestApp = (corsOrigins: string[]) =>
     new Elysia()
       .use(
         cors({
@@ -21,10 +21,9 @@ describe('CORS integration', () => {
       .get('/test', () => ({ ok: true }))
       .delete('/test', () => ({ ok: true }))
 
-  describe('with Tauri regex and explicit origin', () => {
-    const origins = getCorsOrigins({
-      corsOrigins: 'https://app.example.com',
-      corsOriginRegex: /^(tauri:\/\/localhost|http:\/\/tauri\.localhost)$/,
+  describe('with Tauri and explicit origins', () => {
+    const origins = getCorsOriginsList({
+      corsOrigins: 'https://app.example.com,tauri://localhost,http://tauri.localhost',
     })
 
     it('should allow the explicit origin', async () => {
@@ -101,10 +100,9 @@ describe('CORS integration', () => {
     })
   })
 
-  describe('with only explicit origins (no regex)', () => {
-    const origins = getCorsOrigins({
+  describe('with only explicit origins', () => {
+    const origins = getCorsOriginsList({
       corsOrigins: 'https://app.example.com',
-      corsOriginRegex: null,
     })
 
     it('should allow the explicit origin', async () => {
