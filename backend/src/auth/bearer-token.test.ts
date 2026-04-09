@@ -1,13 +1,7 @@
-import { createHmac } from 'crypto'
 import { describe, expect, it } from 'bun:test'
 import { signBearerToken, verifySignedBearerToken } from './bearer-token'
 
 const secret = 'test-secret-at-least-32-chars-long!!'
-
-const sign = (token: string, s = secret): string => {
-  const sig = createHmac('sha256', s).update(token).digest('base64')
-  return `${token}.${sig}`
-}
 
 describe('signBearerToken', () => {
   it('produces rawToken.base64Signature format', () => {
@@ -77,11 +71,11 @@ describe('signBearerToken + verifySignedBearerToken round-trip', () => {
 
 describe('verifySignedBearerToken', () => {
   it('returns raw token for a valid signed token', () => {
-    expect(verifySignedBearerToken(sign('my-session-token'), secret)).toBe('my-session-token')
+    expect(verifySignedBearerToken(signBearerToken('my-session-token', secret), secret)).toBe('my-session-token')
   })
 
   it('returns null when signed with wrong secret', () => {
-    const signed = sign('my-session-token', 'wrong-secret-at-least-32-chars-long!!')
+    const signed = signBearerToken('my-session-token', 'wrong-secret-at-least-32-chars-long!!')
     expect(verifySignedBearerToken(signed, secret)).toBeNull()
   })
 
@@ -107,7 +101,7 @@ describe('verifySignedBearerToken', () => {
 
   it('handles token that itself contains dots', () => {
     const token = 'part1.part2.part3'
-    const signed = sign(token)
+    const signed = signBearerToken(token, secret)
     expect(verifySignedBearerToken(signed, secret)).toBe(token)
   })
 })
