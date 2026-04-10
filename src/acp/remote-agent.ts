@@ -9,6 +9,7 @@ type WebSocketFactory = (url: string) => WebSocketLike
 type RemoteAgentConnectionOptions = {
   agentConfig: AgentConfig
   createWebSocket?: WebSocketFactory
+  ticketPayload?: Record<string, unknown>
   onStream: (stream: Stream) => void
   onDisconnected: () => void
 }
@@ -17,9 +18,12 @@ type RemoteAgentConnectionOptions = {
  * Default WebSocket factory that fetches a one-time auth ticket
  * before each connection and appends it to the URL.
  */
-const ticketedWebSocketFactory = async (url: string): Promise<WebSocketLike> => {
+const ticketedWebSocketFactory = async (
+  url: string,
+  ticketPayload?: Record<string, unknown>,
+): Promise<WebSocketLike> => {
   try {
-    const ticket = await fetchWsTicket()
+    const ticket = await fetchWsTicket(ticketPayload)
     return new WebSocket(appendTicketToUrl(url, ticket)) as unknown as WebSocketLike
   } catch (error) {
     // Only fall back to unauthenticated connection for auth errors (user not logged in).
@@ -40,6 +44,7 @@ const ticketedWebSocketFactory = async (url: string): Promise<WebSocketLike> => 
 export const connectToRemoteAgent = ({
   agentConfig,
   createWebSocket,
+  ticketPayload,
   onStream,
   onDisconnected,
 }: RemoteAgentConnectionOptions): { disconnect: () => void } => {
@@ -48,9 +53,7 @@ export const connectToRemoteAgent = ({
     throw new Error(`Agent "${agentConfig.name}" has no URL configured`)
   }
 
-  // If a custom factory is provided (e.g., tests), use it directly.
-  // Otherwise use the ticketed factory for real connections.
-  const factory = createWebSocket ? () => createWebSocket(url) : () => ticketedWebSocketFactory(url)
+  const factory = createWebSocket ? () => createWebSocket(url) : () => ticketedWebSocketFactory(url, ticketPayload)
 
   let currentWs: WebSocketLike | null = null
 

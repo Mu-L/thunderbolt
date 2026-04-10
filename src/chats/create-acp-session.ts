@@ -7,6 +7,8 @@ import { runBuiltInPrompt } from '@/acp/run-built-in-prompt'
 import { handleSessionUpdate } from './use-acp-chat'
 import { useChatStore } from './chat-store'
 import { isAgentAvailableOnPlatform } from '@/lib/platform'
+import { getDb } from '@/db/database'
+import { getSettings } from '@/dal'
 import type { Agent, Mode, Model } from '@/types'
 import type { AgentConfig, AgentSessionState } from '@/acp/types'
 import type { MCPClient } from '@/lib/mcp-provider'
@@ -51,6 +53,7 @@ const toAgentConfig = (agent: Agent): AgentConfig => ({
   command: agent.command ?? undefined,
   args: safeParseArgs(agent.args),
   url: agent.url ?? undefined,
+  authMethod: agent.authMethod ?? undefined,
   isSystem: agent.isSystem === 1,
   enabled: agent.enabled === 1,
   distributionType: agent.distributionType ?? undefined,
@@ -251,26 +254,48 @@ const createLocalAgentSession = async (chatId: string, agent: Agent): Promise<Ac
   }
 }
 
+/** Build the backend proxy URL for a user-added agent. */
+const getProxyUrl = async (agentId: string): Promise<string> => {
+  const db = getDb()
+  const { cloudUrl } = await getSettings(db, { cloud_url: 'http://localhost:8000/v1' })
+  const wsUrl = cloudUrl.replace(/^http/, 'ws')
+  return `${wsUrl}/agent-proxy/ws/${agentId}`
+}
+
 /**
  * Create an ACP session for a remote agent (WebSocket transport).
- * Uses connectWithReconnect for automatic reconnection with session resumption.
+ * System agents connect directly to their URL.
+ * User-added agents are routed through the backend proxy.
  */
-const createRemoteAgentSession = (chatId: string, agent: Agent): Promise<AcpSessionResult> => {
+const createRemoteAgentSession = async (chatId: string, agent: Agent): Promise<AcpSessionResult> => {
   if (!agent.url) {
     throw new Error(`Remote agent "${agent.name}" has no URL configured.`)
   }
 
   const agentConfig = toAgentConfig(agent)
 
+  // User-added agents go through the backend proxy with config in the ticket
+  const isUserAgent = agent.isSystem === 0
+  if (isUserAgent) {
+    agentConfig.url = await getProxyUrl(agent.id)
+  }
+
+  const ticketPayload = isUserAgent ? { url: agent.url, authMethod: agent.authMethod ?? undefined } : undefined
+
   return new Promise<AcpSessionResult>((resolve, reject) => {
     let isFirstConnect = true
 
     connectToRemoteAgent({
       agentConfig,
-      onStream: (stream) => {
+      ticketPayload,
+      onStream: async (stream) => {
         if (isFirstConnect) {
           isFirstConnect = false
-          initializeAcpSession(stream, chatId).then(resolve, reject)
+          try {
+            resolve(await initializeAcpSession(stream, chatId))
+          } catch (err) {
+            reject(err)
+          }
           return
         }
 
