@@ -25,6 +25,7 @@ describe('createAgentsRoutes', () => {
     delete process.env.HAYSTACK_PIPELINE_ID
     delete process.env.HAYSTACK_PIPELINES
     delete process.env.ENABLED_AGENTS
+    delete process.env.ALLOW_CUSTOM_AGENTS
     clearSettingsCache()
     globalThis.fetch = originalFetch
   })
@@ -33,6 +34,7 @@ describe('createAgentsRoutes', () => {
     version: string
     agents: Array<Record<string, unknown>>
     extensions: unknown[]
+    allowCustomAgents: boolean
   }
 
   const getRemoteAgents = (data: RegistryResponse) => data.agents.filter((a: any) => a.distribution?.remote)
@@ -210,5 +212,35 @@ describe('createAgentsRoutes', () => {
     const remoteAgents = getRemoteAgents(data)
 
     expect(getRemoteUrl(remoteAgents[0])).toBe('wss://localhost/v1/haystack/ws/docs')
+  })
+
+  it('should include allowCustomAgents: true in response by default', async () => {
+    delete process.env.ALLOW_CUSTOM_AGENTS
+    clearSettingsCache()
+
+    const { createAgentsRoutes } = await import('./routes')
+    const { Elysia } = await import('elysia')
+
+    const app = new Elysia().use(createAgentsRoutes())
+
+    const response = await app.handle(new Request('http://localhost/agents'))
+    const data = (await response.json()) as RegistryResponse
+
+    expect(data.allowCustomAgents).toBe(true)
+  })
+
+  it('should include allowCustomAgents: false when ALLOW_CUSTOM_AGENTS=false', async () => {
+    process.env.ALLOW_CUSTOM_AGENTS = 'false'
+    clearSettingsCache()
+
+    const { createAgentsRoutes } = await import('./routes')
+    const { Elysia } = await import('elysia')
+
+    const app = new Elysia().use(createAgentsRoutes())
+
+    const response = await app.handle(new Request('http://localhost/agents'))
+    const data = (await response.json()) as RegistryResponse
+
+    expect(data.allowCustomAgents).toBe(false)
   })
 })

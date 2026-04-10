@@ -486,4 +486,86 @@ describe('AgentCard', () => {
       expect(removeBtn).toBeDefined()
     })
   })
+
+  describe('cliInstallBlocked', () => {
+    it('replaces Install button with disabled button for local distribution when cliInstallBlocked is true', () => {
+      const onInstall = mock(() => {})
+      render(
+        <AgentCard
+          agent={makeAgent({ distributionType: 'npx' })}
+          proxyBase={testProxyBase}
+          isInstalling={false}
+          isUninstalling={false}
+          cliInstallBlocked={true}
+          onInstall={onInstall}
+          onUninstall={noop}
+          onToggle={noop}
+        />,
+      )
+      const btn = screen.getByText('Install').closest('button')
+      expect(btn?.disabled).toBe(true)
+    })
+
+    it('does not call onInstall when install button is clicked with cliInstallBlocked true', () => {
+      const onInstall = mock(() => {})
+      render(
+        <AgentCard
+          agent={makeAgent({ distributionType: 'npx' })}
+          proxyBase={testProxyBase}
+          isInstalling={false}
+          isUninstalling={false}
+          cliInstallBlocked={true}
+          onInstall={onInstall}
+          onUninstall={noop}
+          onToggle={noop}
+        />,
+      )
+      fireEvent.click(screen.getByText('Install'))
+      expect(onInstall).not.toHaveBeenCalled()
+    })
+
+    it('shows functional Install button for local distribution when cliInstallBlocked is false', () => {
+      const onInstall = mock(() => {})
+      const agent = makeAgent({ distributionType: 'npx' })
+      render(
+        <AgentCard
+          agent={agent}
+          proxyBase={testProxyBase}
+          isInstalling={false}
+          isUninstalling={false}
+          cliInstallBlocked={false}
+          onInstall={onInstall}
+          onUninstall={noop}
+          onToggle={noop}
+        />,
+      )
+      const btn = screen.getByText('Install').closest('button')
+      expect(btn?.disabled).toBe(false)
+      fireEvent.click(screen.getByText('Install'))
+      expect(onInstall).toHaveBeenCalledTimes(1)
+      expect(onInstall).toHaveBeenCalledWith(agent)
+    })
+
+    it('shows functional Install button for remote agent regardless of cliInstallBlocked', () => {
+      const onInstall = mock(() => {})
+      const agent = makeAgent({ distributionType: 'remote', isRemote: true })
+      render(
+        <AgentCard
+          agent={agent}
+          proxyBase={testProxyBase}
+          isInstalling={false}
+          isUninstalling={false}
+          cliInstallBlocked={true}
+          onInstall={onInstall}
+          onUninstall={noop}
+          onToggle={noop}
+        />,
+      )
+      const btn = screen.getByText('Install').closest('button')
+      expect(btn?.disabled).toBe(false)
+      fireEvent.click(screen.getByText('Install'))
+      expect(onInstall).toHaveBeenCalledTimes(1)
+      expect(onInstall).toHaveBeenCalledWith(agent)
+    })
+  })
 })

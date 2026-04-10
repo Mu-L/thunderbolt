@@ -1,10 +1,15 @@
-import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'bun:test'
+import { describe, expect, it, beforeAll, afterAll, beforeEach, afterEach, spyOn } from 'bun:test'
 import { setupTestDatabase, resetTestDatabase, teardownTestDatabase } from '@/dal/test-utils'
 import { getDb } from '@/db/database'
 import { agentsTable } from '@/db/tables'
 import { v7 as uuidv7 } from 'uuid'
 import { mergeRegistryWithInstalled, filterAgents, sortAgents } from './use-agent-registry'
 import type { RegistryEntry } from '@/acp/registry'
+import { act, cleanup } from '@testing-library/react'
+import { renderWithReactivity, waitForElement } from '@/test-utils/powersync-reactivity-test'
+import '@testing-library/jest-dom'
+import AgentsSettingsPage from './index'
+import { getClock } from '@/testing-library'
 
 // Focus on testing the data logic since the page component requires
 // complex provider setup (PowerSync, React Query, Router).
@@ -190,5 +195,58 @@ describe('Agents Settings Page — data integration', () => {
       expect(sorted[0].isInstalled).toBe(true)
       expect(sorted[0].enabled).toBe(false)
     })
+  })
+})
+
+describe('AgentsSettingsPage — allowCustomAgents gate', () => {
+  let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>>
+
+  beforeAll(async () => {
+    await setupTestDatabase()
+  })
+
+  afterAll(async () => {
+    await teardownTestDatabase()
+  })
+
+  beforeEach(async () => {
+    await resetTestDatabase()
+  })
+
+  afterEach(() => {
+    fetchSpy?.mockRestore()
+    cleanup()
+  })
+
+  const makeRegistryResponse = (allowCustomAgents: boolean) =>
+    new Response(JSON.stringify({ version: '1.0.0', agents: [], extensions: [], allowCustomAgents }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  const getAddButton = () => document.querySelector('[data-slot="dialog-trigger"]')
+
+  it('hides the Add button when allowCustomAgents is false', async () => {
+    fetchSpy = spyOn(globalThis, 'fetch')
+    fetchSpy.mockResolvedValue(makeRegistryResponse(false))
+
+    renderWithReactivity(<AgentsSettingsPage />, { tables: ['agents'] })
+
+    await act(async () => {
+      getClock().tick(100)
+      await getClock().runAllAsync()
+    })
+
+    expect(getAddButton()).toBeNull()
+  })
+
+  it('shows the Add button when allowCustomAgents is true', async () => {
+    fetchSpy = spyOn(globalThis, 'fetch')
+    fetchSpy.mockResolvedValue(makeRegistryResponse(true))
+
+    renderWithReactivity(<AgentsSettingsPage />, { tables: ['agents'] })
+
+    await waitForElement(() => getAddButton() as HTMLElement | null)
+
+    expect(getAddButton()).toBeTruthy()
   })
 })

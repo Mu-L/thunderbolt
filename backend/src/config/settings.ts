@@ -24,6 +24,7 @@ const settingsSchema = z.object({
 
   // Agent filtering
   enabledAgents: z.string().default(''),
+  allowCustomAgents: z.boolean().default(true),
 
   // Health Check Configuration
   monitoringToken: z.string().default(''),
@@ -92,6 +93,7 @@ const parseSettings = (): Settings => {
     thunderboltInferenceUrl: process.env.THUNDERBOLT_INFERENCE_URL || '',
     thunderboltInferenceApiKey: process.env.THUNDERBOLT_INFERENCE_API_KEY || '',
     enabledAgents: process.env.ENABLED_AGENTS || '',
+    allowCustomAgents: process.env.ALLOW_CUSTOM_AGENTS !== 'false',
     haystackApiKey: process.env.HAYSTACK_API_KEY || '',
     haystackBaseUrl: process.env.HAYSTACK_BASE_URL || 'https://api.cloud.deepset.ai',
     haystackWorkspace: process.env.HAYSTACK_WORKSPACE_NAME || '',

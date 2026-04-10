@@ -147,6 +147,8 @@ export type EventType =
   | 'settings_data_collection_disabled'
   | `settings_experimental_feature_tasks_enabled`
   | `settings_experimental_feature_tasks_disabled`
+  | `settings_experimental_feature_agents_cli_enabled`
+  | `settings_experimental_feature_agents_cli_disabled`
   | 'settings_sync_enabled'
   | 'settings_sync_disabled'
   // Tasks

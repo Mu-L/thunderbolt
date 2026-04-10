@@ -15,6 +15,8 @@ type AgentCardProps = {
   error?: string
   /** When true, local agent install buttons are disabled with a tooltip */
   desktopOnly?: boolean
+  /** When true, CLI agent install buttons are disabled pending preview feature enablement */
+  cliInstallBlocked?: boolean
   onInstall: (agent: MergedAgent) => void
   onUninstall: (agent: MergedAgent) => void
   onToggle: (agent: MergedAgent, enabled: boolean) => void
@@ -36,6 +38,7 @@ export const AgentCard = ({
   isUninstalling,
   error,
   desktopOnly,
+  cliInstallBlocked,
   onInstall,
   onUninstall,
   onToggle,
@@ -161,6 +164,20 @@ export const AgentCard = ({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Requires the Thunderbolt desktop app</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : cliInstallBlocked && isLocalDistribution(agent.distributionType) ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button variant="outline" size="sm" disabled>
+                      <Download className="h-4 w-4 mr-1" />
+                      Install
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Enable in Preferences → Preview Features</p>
                 </TooltipContent>
               </Tooltip>
             ) : (

@@ -216,6 +216,42 @@ describe('Config Settings', () => {
     })
   })
 
+  describe('allowCustomAgents setting', () => {
+    let savedEnv: string | undefined
+
+    beforeEach(() => {
+      clearSettingsCache()
+      savedEnv = process.env.ALLOW_CUSTOM_AGENTS
+    })
+
+    afterEach(() => {
+      if (savedEnv !== undefined) {
+        process.env.ALLOW_CUSTOM_AGENTS = savedEnv
+      } else {
+        delete process.env.ALLOW_CUSTOM_AGENTS
+      }
+      clearSettingsCache()
+    })
+
+    it('should default to true when ALLOW_CUSTOM_AGENTS is absent', () => {
+      delete process.env.ALLOW_CUSTOM_AGENTS
+      const settings = getSettings()
+      expect(settings.allowCustomAgents).toBe(true)
+    })
+
+    it('should be false when ALLOW_CUSTOM_AGENTS=false', () => {
+      process.env.ALLOW_CUSTOM_AGENTS = 'false'
+      const settings = getSettings()
+      expect(settings.allowCustomAgents).toBe(false)
+    })
+
+    it('should be true when ALLOW_CUSTOM_AGENTS=true', () => {
+      process.env.ALLOW_CUSTOM_AGENTS = 'true'
+      const settings = getSettings()
+      expect(settings.allowCustomAgents).toBe(true)
+    })
+  })
+
   describe('PowerSync settings', () => {
     const POWERSYNC_ENV_KEYS = [
       'POWERSYNC_URL',

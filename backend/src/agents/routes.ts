@@ -23,10 +23,12 @@ type RegistryResponse = {
   version: string
   agents: RegistryEntry[]
   extensions: unknown[]
+  allowCustomAgents: boolean
 }
 
 // ── Registry cache ────────────────────────────────────────────────────────────
 
+// In-memory cache — single-process only. Cache is not shared across worker processes.
 let registryCache: { data: RegistryEntry[]; fetchedAt: number } | null = null
 
 const fetchRegistryEntries = async (): Promise<RegistryEntry[]> => {
@@ -107,6 +109,7 @@ export const createAgentsRoutes = () => {
       version: '1.0.0',
       agents,
       extensions: [],
+      allowCustomAgents: getSettings().allowCustomAgents,
     } satisfies RegistryResponse
   })
 

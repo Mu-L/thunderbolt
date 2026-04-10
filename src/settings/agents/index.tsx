@@ -6,6 +6,9 @@ import { PageSearch } from '@/components/ui/page-search'
 import { addCustomAgent, addRemoteAgent, installRegistryAgent, toggleAgent, uninstallRegistryAgent } from '@/dal/agents'
 import { useDatabase } from '@/contexts'
 import { agentsTable } from '@/db/tables'
+import type { Agent } from '@/types'
+import ky from 'ky'
+import { getAuthToken } from '@/lib/auth-token'
 import { useQuery } from '@powersync/tanstack-react-query'
 import { toCompilableQuery } from '@powersync/drizzle-driver'
 import { isNotNull, isNull, and, or, eq } from 'drizzle-orm'
@@ -42,7 +45,10 @@ const AgentSection = ({ title, children }: { title: string; children: ReactNode 
 export default function AgentsSettingsPage() {
   const db = useDatabase()
   const queryClient = useQueryClient()
-  const { cloudUrl } = useSettings({ cloud_url: 'http://localhost:8000/v1' })
+  const { cloudUrl, experimentalFeatureAgentsCli } = useSettings({
+    cloud_url: 'http://localhost:8000/v1',
+    experimental_feature_agents_cli: false,
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [busyAgents, setBusyAgents] = useState<Map<string, 'installing' | 'uninstalling'>>(new Map())
@@ -52,17 +58,28 @@ export default function AgentsSettingsPage() {
   const canInstallLocal = isAgentAvailableOnPlatform('local')
 
   // Fetch unified agent list from backend (ACP registry + remote agents merged server-side)
-  const { data: registryEntries = [] } = useTanstackQuery({
+  const { data: registryData } = useTanstackQuery({
     queryKey: ['agent-registry', cloudUrl.value],
     queryFn: async () => {
-      const response = await globalThis.fetch(`${cloudUrl.value}/agents`)
-      const json = await response.json()
-      // Backend returns registry format: { version, agents, extensions }
-      return Array.isArray(json?.agents) ? parseRegistryJson(JSON.stringify(json)) : []
+      const token = getAuthToken()
+      const json = await ky
+        .get(`${cloudUrl.value}/agents`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+        })
+        .json<{ agents?: unknown[]; allowCustomAgents?: boolean }>()
+      return {
+        entries: Array.isArray(json?.agents) ? parseRegistryJson(JSON.stringify(json)) : [],
+        allowCustomAgents: json?.allowCustomAgents ?? true,
+      }
     },
     staleTime: 60_000,
     enabled: !!cloudUrl.value,
   })
+
+  const registryEntries = registryData?.entries ?? []
+  const allowCustomAgents = registryData?.allowCustomAgents ?? true
+  const canInstallCli = canInstallLocal && experimentalFeatureAgentsCli.value && allowCustomAgents
 
   // Fetch installed agents from DB (live query via PowerSync)
   // Includes: built-in, registry-installed, custom, and remote agents
@@ -87,7 +104,7 @@ export default function AgentsSettingsPage() {
   })
 
   // Merge, filter, sort, group
-  const allAgents = mergeRegistryWithInstalled(registryEntries, installedAgents as any)
+  const allAgents = mergeRegistryWithInstalled(registryEntries, installedAgents as Agent[])
   const filtered = filterAgents(allAgents, searchQuery)
   const sorted = sortAgents(filtered)
   const sections = groupAgentsBySection(sorted, canInstallLocal)
@@ -128,7 +145,9 @@ export default function AgentsSettingsPage() {
     setBusy(agent.registryId, 'installing')
     try {
       const entry = agent.registryEntry
-      const platformKey = getRegistryPlatformKey('macos', 'aarch64') // TODO: use actual platform
+      const { platform: getPlatformFn, arch: getArchFn } = await import('@tauri-apps/plugin-os')
+      const [currentPlatform, currentArch] = await Promise.all([getPlatformFn(), getArchFn()])
+      const platformKey = getRegistryPlatformKey(currentPlatform, currentArch)
       const preferred = getPreferredDistribution(entry.distribution, platformKey)
 
       if (!preferred) {
@@ -270,18 +289,20 @@ export default function AgentsSettingsPage() {
       <PageSearch onSearch={setSearchQuery}>
         <PageHeader title="Agents">
           <PageSearch.Button tooltip="Search" />
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-lg">
-                <Plus />
-              </Button>
-            </DialogTrigger>
-            <AddCustomAgentDialogContent
-              onAdd={handleAddCustom}
-              onClose={() => setIsAddDialogOpen(false)}
-              remoteOnly={!canInstallLocal}
-            />
-          </Dialog>
+          {allowCustomAgents && (
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-lg">
+                  <Plus />
+                </Button>
+              </DialogTrigger>
+              <AddCustomAgentDialogContent
+                onAdd={handleAddCustom}
+                onClose={() => setIsAddDialogOpen(false)}
+                remoteOnly={!canInstallLocal}
+              />
+            </Dialog>
+          )}
         </PageHeader>
         <PageSearch.Input placeholder="Search agents..." onSearch={setSearchQuery} />
       </PageSearch>
@@ -298,6 +319,7 @@ export default function AgentsSettingsPage() {
                 isUninstalling={busyAgents.get(agent.registryId) === 'uninstalling'}
                 error={agentErrors.get(agent.registryId)}
                 desktopOnly={!canInstallLocal}
+                cliInstallBlocked={!canInstallCli}
                 onInstall={handleInstallClick}
                 onUninstall={handleUninstall}
                 onToggle={handleToggle}
@@ -317,6 +339,7 @@ export default function AgentsSettingsPage() {
                 isUninstalling={busyAgents.get(agent.registryId) === 'uninstalling'}
                 error={agentErrors.get(agent.registryId)}
                 desktopOnly={!canInstallLocal}
+                cliInstallBlocked={!canInstallCli}
                 onInstall={handleInstallClick}
                 onUninstall={handleUninstall}
                 onToggle={handleToggle}
@@ -336,6 +359,7 @@ export default function AgentsSettingsPage() {
                 isUninstalling={busyAgents.get(agent.registryId) === 'uninstalling'}
                 error={agentErrors.get(agent.registryId)}
                 desktopOnly={!canInstallLocal}
+                cliInstallBlocked={!canInstallCli}
                 onInstall={handleInstallClick}
                 onUninstall={handleUninstall}
                 onToggle={handleToggle}
