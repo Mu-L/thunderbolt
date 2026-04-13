@@ -1,3 +1,4 @@
+import * as aws from '@pulumi/aws'
 import * as eks from '@pulumi/eks'
 import * as k8s from '@pulumi/kubernetes'
 import * as pulumi from '@pulumi/pulumi'
@@ -22,6 +23,7 @@ export const createEksCluster = (args: EksArgs) => {
     desiredCapacity: 2,
     minSize: 1,
     maxSize: 3,
+    createOidcProvider: true,
     tags: { Name: `${name}-eks` },
   })
 
@@ -57,14 +59,63 @@ export const createEksCluster = (args: EksArgs) => {
     chartDeps.push(pullSecret)
   }
 
-  // Install the Thunderbolt Helm chart from GHCR
+  // EBS CSI driver for PersistentVolume support
+  const ebsCsiRole = new aws.iam.Role(`${name}-ebs-csi-role`, {
+    assumeRolePolicy: pulumi.all([cluster.oidcProviderArn, cluster.oidcProviderUrl]).apply(([arn, url]) => {
+      const issuer = url.replace('https://', '')
+      return JSON.stringify({
+        Version: '2012-10-17',
+        Statement: [{
+          Effect: 'Allow',
+          Principal: { Federated: arn },
+          Action: 'sts:AssumeRoleWithWebIdentity',
+          Condition: {
+            StringEquals: {
+              [`${issuer}:sub`]: 'system:serviceaccount:kube-system:ebs-csi-controller-sa',
+              [`${issuer}:aud`]: 'sts.amazonaws.com',
+            },
+          },
+        }],
+      })
+    }),
+  })
+
+  new aws.iam.RolePolicyAttachment(`${name}-ebs-csi-policy`, {
+    role: ebsCsiRole.name,
+    policyArn: 'arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy',
+  })
+
+  const ebsCsiAddon = new aws.eks.Addon(`${name}-ebs-csi`, {
+    clusterName: cluster.eksCluster.apply(c => c.name),
+    addonName: 'aws-ebs-csi-driver',
+    serviceAccountRoleArn: ebsCsiRole.arn,
+  })
+
+  const storageClass = new k8s.storage.v1.StorageClass(
+    `${name}-gp3`,
+    {
+      metadata: {
+        name: 'gp3',
+        annotations: { 'storageclass.kubernetes.io/is-default-class': 'true' },
+      },
+      provisioner: 'ebs.csi.aws.com',
+      parameters: { type: 'gp3' },
+      volumeBindingMode: 'WaitForFirstConsumer',
+      reclaimPolicy: 'Delete',
+    },
+    { provider: k8sProvider, dependsOn: [ebsCsiAddon] },
+  )
+
+  chartDeps.push(storageClass)
+
+  // Install the Thunderbolt Helm chart from the local chart
   const imagePrefix = 'ghcr.io/thunderbird/thunderbolt'
   new k8s.helm.v3.Release(
     `${name}-thunderbolt`,
     {
-      chart: 'oci://ghcr.io/thunderbird/charts/thunderbolt',
-      version,
+      chart: '../k8s',
       namespace: 'thunderbolt',
+      timeout: 900,
       values: {
         appUrl: 'http://localhost',
         imagePullSecrets: args.ghcrToken ? [{ name: 'ghcr-pull' }] : [],
@@ -105,14 +156,5 @@ export const createEksCluster = (args: EksArgs) => {
     { provider: k8sProvider },
   )
 
-  // Get the ingress controller's load balancer hostname
-  const ingressService = k8s.core.v1.Service.get(
-    `${name}-ingress-svc`,
-    pulumi.interpolate`ingress-nginx/ingress-nginx-controller`,
-    { provider: k8sProvider, dependsOn: [ingressController] },
-  )
-
-  const lbHostname = ingressService.status.loadBalancer.ingress[0].hostname
-
-  return { cluster, k8sProvider, lbHostname }
+  return { cluster, k8sProvider, ingressController }
 }

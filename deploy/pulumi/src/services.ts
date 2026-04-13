@@ -212,10 +212,8 @@ export const createServices = (args: ServiceArgs) => {
         image: 'mongo:7.0',
         essential: true,
         command: [
-          'mongosh',
-          '--host', 'mongo.thunderbolt.local',
-          '--eval',
-          'try { rs.status() } catch(e) { rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongo.thunderbolt.local:27017" }] }) }',
+          'bash', '-c',
+          'for i in $(seq 1 30); do mongosh --host mongo.thunderbolt.local --eval "try { rs.status() } catch(e) { rs.initiate({ _id: \\"rs0\\", members: [{ _id: 0, host: \\"mongo.thunderbolt.local:27017\\" }] }) }" && exit 0; echo "Waiting for mongo... ($i/30)"; sleep 5; done; exit 1',
         ],
         logConfiguration: logConfig('mongo-init'),
       },

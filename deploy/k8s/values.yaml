@@ -28,6 +28,8 @@ backend:
   replicas: 1
   service:
     port: 8000
+  # -- Base64-encoded Better Auth secret (default: "enterprise-better-auth-secret")
+  betterAuthSecretBase64: ZW50ZXJwcmlzZS1iZXR0ZXItYXV0aC1zZWNyZXQ=
   env:
     authMode: oidc
     waitlistEnabled: "false"

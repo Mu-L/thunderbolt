@@ -37,7 +37,7 @@ const { vpc, publicSubnets, privateSubnets, albSg, servicesSg } = createVpc(name
 
 if (platform === 'k8s') {
   // ---------- Kubernetes (EKS) ----------
-  const { cluster, lbHostname } = createEksCluster({
+  const { cluster } = createEksCluster({
     name,
     version,
     vpcId: vpc.id,
@@ -48,8 +48,8 @@ if (platform === 'k8s') {
 
   module.exports = {
     platform: 'k8s',
-    url: pulumi.interpolate`http://${lbHostname}`,
     kubeconfig: cluster.kubeconfigJson,
+    note: 'Run: kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].hostname}" to get the URL',
     stackInfo: {
       name: stackName,
       destroy: `pulumi destroy -s ${stackName} -y`,

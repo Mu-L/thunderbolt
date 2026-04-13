@@ -55,6 +55,11 @@ spec:
                 secretKeyRef:
                   name: thunderbolt-secrets
                   key: oidc-client-secret
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: thunderbolt-secrets
+                  key: better-auth-secret
             - name: BETTER_AUTH_URL
               value: {{ .Values.appUrl }}
             - name: APP_URL
