@@ -9,7 +9,7 @@ import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
  * and the actual request is sent to the backend's /v1/mcp-proxy endpoint.
  *
  * Auth header remapping: the MCP server's Authorization header is moved to
- * X-Mcp-Authorization so the proxy can authenticate the Thunderbolt user
+ * Mcp-Authorization so the proxy can authenticate the Thunderbolt user
  * via the standard Authorization header. The backend remaps it back before
  * forwarding to the target MCP server.
  */
@@ -22,7 +22,7 @@ export const createProxiedFetch =
     // Move MCP server's auth to a separate header so it doesn't conflict with proxy auth
     const mcpAuth = headers.get('Authorization')
     if (mcpAuth) {
-      headers.set('X-Mcp-Authorization', mcpAuth)
+      headers.set('Mcp-Authorization', mcpAuth)
     }
 
     // Authenticate with the proxy using the Thunderbolt session token

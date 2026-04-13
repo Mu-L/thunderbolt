@@ -1,6 +1,6 @@
 import type { Auth } from '@/auth/elysia-plugin'
 import { createAuthMacro } from '@/auth/elysia-plugin'
-import { getCorsOrigins, getSettings } from '@/config/settings'
+import { getCorsOriginsList, getSettings } from '@/config/settings'
 import { safeErrorHandler } from '@/middleware/error-handling'
 import { createSafeFetch, validateSafeUrl } from '@/utils/url-validation'
 import { buildQueryString, extractResponseHeaders, filterHeaders } from '@/utils/request'
@@ -13,7 +13,7 @@ const maxBodyBytes = 10 * 1024 * 1024
 /** Proxy request timeout (30s — MCP operations can be slower than typical API calls). */
 const proxyTimeoutMs = 30_000
 
-/** Headers to strip from proxied MCP requests before forwarding to the target server. */
+/** Headers to strip from proxied MCP requests (mcp-authorization is rewritten to authorization below). */
 const mcpRequestDenylist = [
   'host',
   'connection',
@@ -22,8 +22,8 @@ const mcpRequestDenylist = [
   'content-length',
   'cookie',
   'authorization',
+  'mcp-authorization',
   'x-mcp-target-url',
-  'x-mcp-authorization',
   /^proxy-/i,
   /^x-forwarded-/i,
   'x-real-ip',
@@ -54,10 +54,7 @@ const handleProxy = async (
   const url = subPath ? `${base}/${subPath}${queryString}` : `${base}${queryString}`
   const headers = filterHeaders(ctx.headers, mcpRequestDenylist)
 
-  // Remap X-Mcp-Authorization → Authorization for the target MCP server.
-  // The frontend moves the MCP server's auth here so the proxy's own
-  // Authorization header can carry the Thunderbolt session token.
-  const mcpAuth = ctx.headers['x-mcp-authorization']
+  const mcpAuth = ctx.headers['mcp-authorization']
   if (mcpAuth) {
     headers['authorization'] = mcpAuth
   }
@@ -106,6 +103,12 @@ const handleProxy = async (
 
     const responseHeaders = extractResponseHeaders(response.headers)
     responseHeaders.delete('set-cookie')
+
+    // Prevent XSS: proxied content must never execute scripts in our origin
+    responseHeaders.set('content-security-policy', 'sandbox')
+    responseHeaders.set('content-disposition', 'attachment')
+    responseHeaders.set('x-content-type-options', 'nosniff')
+
     responseHeaders.set('cross-origin-resource-policy', 'cross-origin')
 
     return new Response(body, {
@@ -126,7 +129,7 @@ export const createMcpProxyRoutes = (auth: Auth, fetchFn: typeof fetch = globalT
     .onError(safeErrorHandler)
     .use(
       cors({
-        origin: getCorsOrigins(settings),
+        origin: getCorsOriginsList(settings),
         allowedHeaders: settings.corsAllowHeaders,
         exposeHeaders: settings.corsExposeHeaders,
       }),
