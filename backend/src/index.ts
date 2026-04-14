@@ -14,6 +14,7 @@ import { createPostHogRoutes } from '@/posthog/routes'
 import { createProToolsRoutes } from '@/pro/routes'
 import { createWaitlistRoutes } from '@/waitlist/routes'
 import { createAccountRoutes } from '@/api/account'
+import { createEncryptionRoutes } from '@/api/encryption'
 import { createPowerSyncRoutes } from '@/api/powersync'
 import type { AppDeps } from '@/types'
 import { cors } from '@elysiajs/cors'
@@ -87,8 +88,16 @@ export const createApp = async (deps?: AppDeps) => {
       .use(createInferenceRoutes(auth, createInferenceRateLimit(database, rateLimitSettings)))
       .use(createPostHogRoutes(fetchFn))
       .use(createMcpProxyRoutes(auth, fetchFn))
-      .use(createWaitlistRoutes({ database, auth, emailService: deps?.waitlistEmailService }))
+      .use(
+        createWaitlistRoutes({
+          database,
+          auth,
+          emailService: deps?.waitlistEmailService,
+          cooldownMs: deps?.otpCooldownMs,
+        }),
+      )
       .use(createPowerSyncRoutes(auth, settings, database))
+      .use(createEncryptionRoutes(auth, database))
       .use(createAccountRoutes(auth, database))
   )
 }
@@ -162,7 +171,7 @@ const startServer = async () => {
       process.exit(0)
     })
   } catch (error) {
-    log.error({ error }, 'Failed to start server')
+    log.error({ err: error }, 'Failed to start server')
     process.exit(1)
   }
 }

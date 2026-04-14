@@ -19,10 +19,14 @@ const host = process.env.TAURI_DEV_HOST
 // 2. The `analyze` npm/bun script being executed (process arguments include the word "analyze")
 const shouldAnalyze = process.env.ANALYZE?.toLowerCase() === 'true' || process.argv.includes('analyze')
 
+// Source maps are disabled by default so forks don't accidentally expose proprietary code.
+// Enable with ENABLE_SOURCEMAP=true (e.g. in CI) to upload maps to PostHog for error tracking.
+const sourcemap = process.env.ENABLE_SOURCEMAP?.toLowerCase() === 'true' ? 'hidden' : false
+
 // https://vitejs.dev/config/
 export default defineConfig({
   build: {
-    sourcemap: 'hidden',
+    sourcemap,
     rollupOptions: {
       external: ['bun:sqlite'],
     },
@@ -71,6 +75,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, './shared'),
+      // Exposes PowerSync internal lib path so our custom SharedWorker can extend
+      // SharedSyncImplementation (not in public exports map).
+      'powersync-web-internal': path.resolve(__dirname, 'node_modules/@powersync/web/lib/src'),
     },
     conditions: ['browser'],
   },

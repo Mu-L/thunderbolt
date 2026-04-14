@@ -4,26 +4,28 @@ import { isOriginAllowed } from '@/config/settings'
 import { applyOperation, getActiveSessionByToken, getDeviceById, getUserById, upsertDevice } from '@/dal'
 import type { db as DbType } from '@/db/client'
 import { verifySignedBearerToken } from '@/auth/bearer-token'
+import { safeErrorHandler } from '@/middleware/error-handling'
 import { jwt } from '@elysiajs/jwt'
 import { Elysia, t } from 'elysia'
 
 type DeviceValidationResult =
   | { ok: true }
   | { ok: false; status: 400; body: { code: 'DEVICE_ID_REQUIRED' } }
-  | { ok: false; status: 403; body: { code: 'DEVICE_DISCONNECTED' } }
+  | { ok: false; status: 403; body: { code: 'DEVICE_DISCONNECTED' | 'DEVICE_NOT_TRUSTED' } }
   | { ok: false; status: 409; body: { code: 'DEVICE_ID_TAKEN' } }
 
 type IssuePowerSyncTokenResult =
   | { ok: true; token: string; expiresAt: string; powerSyncUrl: string }
   | { ok: false; status: 400; body: { code: 'DEVICE_ID_REQUIRED' } }
-  | { ok: false; status: 403; body: { code: 'DEVICE_DISCONNECTED' } }
+  | { ok: false; status: 403; body: { code: 'DEVICE_DISCONNECTED' | 'DEVICE_NOT_TRUSTED' } }
   | { ok: false; status: 409; body: { code: 'DEVICE_ID_TAKEN' } }
 
 /**
- * Validates that the device is not revoked and belongs to the user.
- * Requires x-device-id so revoked devices cannot bypass by omitting it.
+ * Validates that the device belongs to the user, is trusted, and is not revoked.
+ * Untrusted devices (pending approval) cannot sync — they use HTTP APIs for the
+ * key setup flow and only need sync after receiving the CK.
  */
-const validateDeviceNotRevoked = async (
+const validateDeviceForSync = async (
   userId: string,
   request: Request,
   database: typeof DbType,
@@ -35,13 +37,18 @@ const validateDeviceNotRevoked = async (
 
   const deviceRow = await getDeviceById(database, deviceId)
 
-  if (deviceRow) {
-    if (deviceRow.userId !== userId) {
-      return { ok: false, status: 409, body: { code: 'DEVICE_ID_TAKEN' } }
-    }
-    if (deviceRow.revokedAt != null) {
-      return { ok: false, status: 403, body: { code: 'DEVICE_DISCONNECTED' } }
-    }
+  if (!deviceRow) {
+    return { ok: false, status: 403, body: { code: 'DEVICE_NOT_TRUSTED' } }
+  }
+
+  if (deviceRow.userId !== userId) {
+    return { ok: false, status: 409, body: { code: 'DEVICE_ID_TAKEN' } }
+  }
+  if (deviceRow.revokedAt != null) {
+    return { ok: false, status: 403, body: { code: 'DEVICE_DISCONNECTED' } }
+  }
+  if (!deviceRow.trusted) {
+    return { ok: false, status: 403, body: { code: 'DEVICE_NOT_TRUSTED' } }
   }
 
   return { ok: true }
@@ -69,7 +76,7 @@ const issuePowerSyncToken = async (
   settings: Settings,
   database: typeof DbType,
 ): Promise<IssuePowerSyncTokenResult> => {
-  const validation = await validateDeviceNotRevoked(userId, request, database)
+  const validation = await validateDeviceForSync(userId, request, database)
   if (!validation.ok) {
     return validation
   }
@@ -118,6 +125,7 @@ export const createPowerSyncRoutes = (auth: Auth, settings: Settings, database: 
   }
 
   return new Elysia({ prefix: '/powersync' })
+    .onError(safeErrorHandler)
     .use(
       jwt({
         name: 'powersyncJwt',
@@ -204,7 +212,7 @@ export const createPowerSyncRoutes = (auth: Auth, settings: Settings, database: 
           return { error: 'Unauthorized' }
         }
 
-        const validation = await validateDeviceNotRevoked(user.id, request, database)
+        const validation = await validateDeviceForSync(user.id, request, database)
         if (!validation.ok) {
           set.status = validation.status
           return validation.body
