@@ -3,6 +3,18 @@ import { http } from '@/lib/http'
 import { useSettings } from '@/hooks/use-settings'
 import Loading from '@/loading'
 
+/** Validate that an OIDC redirect URL uses a safe protocol. */
+export const validateOidcRedirectUrl = (rawUrl: string): URL => {
+  const url = new URL(rawUrl)
+  if (url.protocol === 'javascript:' || url.protocol === 'data:') {
+    throw new Error('Invalid OIDC redirect protocol')
+  }
+  if (url.protocol !== 'https:' && url.hostname !== 'localhost') {
+    throw new Error('OIDC redirect must use HTTPS')
+  }
+  return url
+}
+
 /**
  * In OIDC mode, redirects unauthenticated users to the backend's OIDC sign-in endpoint,
  * which in turn redirects to the OIDC provider. The user never sees a login page on our app.
@@ -32,7 +44,8 @@ const OidcRedirect = () => {
           })
           .json<{ url: string }>()
 
-        window.location.href = data.url
+        const validatedUrl = validateOidcRedirectUrl(data.url)
+        window.location.href = validatedUrl.href
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') {
           return
