@@ -64,6 +64,7 @@ if (platform === 'k8s') {
     publicSubnetIds: publicSubnets.map((s) => s.id),
     privateSubnetIds: privateSubnets.map((s) => s.id),
     ghcrToken: config.getSecret('ghcrToken'),
+    betterAuthSecretBase64: secrets.betterAuthSecret.apply((s) => Buffer.from(s).toString('base64')),
   })
 
   module.exports = {

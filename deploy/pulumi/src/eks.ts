@@ -12,6 +12,7 @@ type EksArgs = {
   publicSubnetIds: pulumi.Input<string>[]
   privateSubnetIds: pulumi.Input<string>[]
   ghcrToken?: pulumi.Output<string>
+  betterAuthSecretBase64: pulumi.Output<string>
 }
 
 export const createEksCluster = (args: EksArgs) => {
@@ -125,6 +126,7 @@ export const createEksCluster = (args: EksArgs) => {
         },
         backend: {
           image: { repository: `${imagePrefix}/thunderbolt-backend`, tag: version },
+          betterAuthSecretBase64: args.betterAuthSecretBase64,
         },
         postgres: {
           image: { repository: `${imagePrefix}/thunderbolt-postgres`, tag: version },

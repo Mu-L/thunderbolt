@@ -64,6 +64,19 @@ export const createServices = (args: ServiceArgs) => {
     tags: { Name: `${name}-task-role` },
   })
 
+  // EFS IAM authorization for volume mounts (defense-in-depth alongside security groups)
+  new aws.iam.RolePolicy(`${name}-task-efs-policy`, {
+    role: taskRoleInstance.name,
+    policy: pulumi.jsonStringify({
+      Version: '2012-10-17',
+      Statement: [{
+        Effect: 'Allow',
+        Action: ['elasticfilesystem:ClientMount', 'elasticfilesystem:ClientWrite'],
+        Resource: [pulumi.interpolate`arn:aws:elasticfilesystem:${region}:*:file-system/${efsId}`],
+      }],
+    }),
+  })
+
   // --- GHCR registry auth (for pulling private images) ---
   const repositoryCredentials = (() => {
     if (!args.ghcrToken) return undefined
@@ -119,7 +132,7 @@ export const createServices = (args: ServiceArgs) => {
         efsVolumeConfiguration: {
           fileSystemId: efsId,
           transitEncryption: 'ENABLED',
-          authorizationConfig: { accessPointId: pgAccessPointId },
+          authorizationConfig: { accessPointId: pgAccessPointId, iam: 'ENABLED' },
         },
       },
     ],
@@ -170,7 +183,7 @@ export const createServices = (args: ServiceArgs) => {
         efsVolumeConfiguration: {
           fileSystemId: efsId,
           transitEncryption: 'ENABLED',
-          authorizationConfig: { accessPointId: mongoAccessPointId },
+          authorizationConfig: { accessPointId: mongoAccessPointId, iam: 'ENABLED' },
         },
       },
     ],

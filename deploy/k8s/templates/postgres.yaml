@@ -47,6 +47,11 @@ spec:
                 secretKeyRef:
                   name: thunderbolt-secrets
                   key: postgres-password
+            - name: POWERSYNC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: thunderbolt-secrets
+                  key: powersync-db-password
           volumeMounts:
             - name: pg-data
               mountPath: /var/lib/postgresql/data
