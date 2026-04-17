@@ -1,0 +1,62 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      npm-root-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      npm-root-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      npm-backend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      npm-backend-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  - package-ecosystem: "npm"
+    directory: "/marketing"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      npm-marketing-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      npm-marketing-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  - package-ecosystem: "cargo"
+    directory: "/src-tauri"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      cargo-tauri-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      cargo-tauri-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
