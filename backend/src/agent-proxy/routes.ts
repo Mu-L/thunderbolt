@@ -209,15 +209,21 @@ export const handleHttpMessage = async (
   if (state.apiKey) headers['Authorization'] = `Bearer ${state.apiKey}`
 
   if (msgType === 'notification' || msgType === 'response') {
+    const ac = new AbortController()
+    state.activeAborts.add(ac)
+    const timeout = setTimeout(() => ac.abort(), proxyTimeoutMs)
     try {
       await fetchImpl(state.agentUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify(msg),
-        signal: AbortSignal.timeout(proxyTimeoutMs),
+        signal: ac.signal,
       })
     } catch (err) {
       console.warn('[agent-proxy] Fire-and-forget POST failed (session preserved):', err)
+    } finally {
+      clearTimeout(timeout)
+      state.activeAborts.delete(ac)
     }
     return
   }
@@ -320,6 +326,13 @@ export const createAgentProxyRoutes = () => {
 
         const apiKey = parseApiKey(authMethod ?? null)
         const isWebSocket = agentUrl.startsWith('ws://') || agentUrl.startsWith('wss://')
+
+        // Block API keys over unencrypted ws:// — the Sec-WebSocket-Protocol header
+        // would transmit `Bearer.{apiKey}` in cleartext. Require wss:// for auth.
+        if (agentUrl.startsWith('ws://') && apiKey) {
+          ws.close(4003, 'API keys require wss:// (encrypted WebSocket)')
+          return
+        }
 
         const state = isWebSocket ? openWsRelay(ws, agentUrl, apiKey) : openHttpRelay(agentUrl, apiKey)
 

@@ -334,6 +334,18 @@ describe('createAgentProxyRoutes (open handler)', () => {
     expect(ws.closeCalls[0]!.code).toBe(4004)
   })
 
+  it('closes with 4003 when ws:// is paired with an apiKey (cleartext credential)', async () => {
+    const open = getOpenHandler()
+    const ticketId = createWsTicket('user-ws-apikey', {
+      url: 'ws://agent.example.com/ws',
+      authMethod: '{"apiKey":"test-key"}',
+    })
+    const ws = createMockWs(ticketId)
+    await open(ws)
+    expect(ws.closeCalls).toHaveLength(1)
+    expect(ws.closeCalls[0]!.code).toBe(4003)
+  })
+
   it('consumes a valid ticket and opens an upstream connection (http scheme)', async () => {
     const open = getOpenHandler()
     // Use a public-looking hostname so SSRF validation passes. The handler will
@@ -389,5 +401,32 @@ describe('handleHttpMessage', () => {
 
     const payload = JSON.parse(ws.sentMessages[0]!) as { id: unknown }
     expect(payload.id).toBe('abc-123')
+  })
+
+  it('aborts in-flight notification POSTs when close aborts activeAborts', async () => {
+    const ws = createMockWs()
+    const state = createHttpState()
+    let capturedSignal: AbortSignal | undefined
+    const fakeFetch: (input: string | URL | Request, init?: RequestInit) => Promise<Response> = (_url, init) => {
+      capturedSignal = init?.signal as AbortSignal
+      return new Promise<Response>((_resolve, reject) => {
+        capturedSignal!.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    }
+
+    const promise = handleHttpMessage(
+      ws,
+      JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress' }),
+      state,
+      fakeFetch,
+    )
+
+    // Simulate close: abort all active controllers (mirrors the close handler).
+    for (const ac of state.activeAborts) ac.abort()
+
+    await promise
+
+    expect(capturedSignal?.aborted).toBe(true)
+    expect(state.activeAborts.size).toBe(0)
   })
 })
