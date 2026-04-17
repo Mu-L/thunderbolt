@@ -32,6 +32,7 @@ import {
   fetchMyEnvelope,
   fetchCanary,
   denyDevice as denyDeviceApi,
+  revokeDevice as revokeDeviceApi,
   type RegisterDeviceResponse,
 } from '@/api/encryption'
 import { invalidateCKCache, resetCodecState } from '@/db/encryption'
@@ -130,7 +131,7 @@ export const completeFirstDeviceSetup = async (httpClient: HttpClient): Promise<
 
 /**
  * Extract the canary secret by decrypting the server-stored canary with the local CK.
- * Used as proof-of-CK-possession for trust-sensitive operations (approve, deny).
+ * Used as proof-of-CK-possession for trust-sensitive operations (approve, deny, revoke).
  */
 export const extractCanarySecret = async (httpClient: HttpClient): Promise<string> => {
   const { canaryIv, canaryCtext } = await fetchCanary(httpClient)
@@ -190,6 +191,15 @@ export const approveDevice = async (
 export const denyDeviceWithProof = async (httpClient: HttpClient, deviceId: string): Promise<void> => {
   const canarySecret = await extractCanarySecret(httpClient)
   await denyDeviceApi(httpClient, deviceId, canarySecret)
+}
+
+/**
+ * Revoke a device with proof-of-CK-possession.
+ * Extracts canary secret and sends it to prove the caller has the Content Key.
+ */
+export const revokeDeviceWithProof = async (httpClient: HttpClient, deviceId: string): Promise<void> => {
+  const canarySecret = await extractCanarySecret(httpClient)
+  await revokeDeviceApi(httpClient, deviceId, canarySecret)
 }
 
 // =============================================================================
