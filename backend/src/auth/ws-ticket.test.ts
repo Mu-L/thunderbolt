@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'bun:test'
-import { consumeWsTicket, createWsTicket } from './ws-ticket'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { _resetTicketsForTesting, consumeWsTicket, createWsTicket } from './ws-ticket'
 
 describe('ws-ticket', () => {
+  beforeEach(() => {
+    _resetTicketsForTesting()
+  })
+
   it('generates a 64-character hex ticket', () => {
     const ticket = createWsTicket('user-1')
     expect(ticket).toHaveLength(64)

@@ -5,6 +5,7 @@ import { setupConsoleSpy } from '@/test-utils/console-spies'
 import { mockAuth, mockAuthUnauthenticated } from '@/test-utils/mock-auth'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import { Elysia } from 'elysia'
+import { _resetTicketsForTesting } from './ws-ticket'
 import { createWsTicketRoutes } from './ws-ticket-routes'
 
 const ENV_KEYS = ['ALLOW_CUSTOM_AGENTS'] as const
@@ -82,6 +83,7 @@ afterAll(() => {
 })
 
 beforeEach(() => {
+  _resetTicketsForTesting()
   clearSettingsCache()
   savedEnv = {}
   for (const key of ENV_KEYS) {

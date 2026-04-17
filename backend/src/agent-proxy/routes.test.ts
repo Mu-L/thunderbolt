@@ -1,8 +1,8 @@
 import type { ConsoleSpies } from '@/test-utils/console-spies'
 import { setupConsoleSpy } from '@/test-utils/console-spies'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { classifyMessage, createAgentProxyRoutes, parseApiKey, parseSSEStream } from './routes'
-import { consumeWsTicket, createWsTicket } from '@/auth/ws-ticket'
+import { _resetTicketsForTesting, consumeWsTicket, createWsTicket } from '@/auth/ws-ticket'
 
 let consoleSpies: ConsoleSpies
 beforeAll(() => {
@@ -10,6 +10,10 @@ beforeAll(() => {
 })
 afterAll(() => {
   consoleSpies.restore()
+})
+
+beforeEach(() => {
+  _resetTicketsForTesting()
 })
 
 describe('parseApiKey', () => {
