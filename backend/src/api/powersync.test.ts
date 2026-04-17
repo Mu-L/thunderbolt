@@ -1570,6 +1570,59 @@ describe('PowerSync API', () => {
       expect(rows[0]?.userId).toBe(userA)
     })
 
+    it('blocks DELETE on devices table (must use dedicated revoke API)', async () => {
+      const userId = 'user-delete-device-blocked'
+      const deviceId = 'device-to-delete-blocked'
+      const now = new Date()
+      const expiresAt = new Date(now.getTime() + 3600 * 1000)
+
+      await db.insert(userTable).values({
+        id: userId,
+        name: 'Delete Device Blocked User',
+        email: 'delete-device-blocked@example.com',
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      await db.insert(sessionTable).values({
+        id: 'session-delete-device-blocked',
+        expiresAt,
+        token: 'bearer-delete-device-blocked',
+        createdAt: now,
+        updatedAt: now,
+        userId,
+      })
+      await insertTrustedDevice('test-device-id', userId)
+
+      // Insert a second device that the attacker will try to delete via PowerSync
+      await db.insert(devicesTable).values({
+        id: deviceId,
+        userId,
+        name: 'Target Device',
+        trusted: true,
+        lastSeen: now,
+        createdAt: now,
+      })
+
+      const response = await app.handle(
+        new Request('http://localhost/powersync/upload', {
+          method: 'PUT',
+          headers: uploadHeaders('bearer-delete-device-blocked'),
+          body: JSON.stringify({
+            operations: [{ op: 'DELETE' as const, type: 'devices', id: deviceId }],
+          }),
+        }),
+      )
+      expect(response.status).toBe(400)
+      const body = (await response.json()) as { code: string }
+      expect(body.code).toBe('UPLOAD_OPERATION_FAILED')
+
+      // Device must still exist
+      const devices = await db.select().from(devicesTable).where(eq(devicesTable.id, deviceId))
+      expect(devices).toHaveLength(1)
+      expect(devices[0]?.trusted).toBe(true)
+    })
+
     it('ignores unknown and injection-like column names in PUT data', async () => {
       const userId = 'user-upload-safe'
       const now = new Date()

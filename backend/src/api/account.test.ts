@@ -716,6 +716,73 @@ describe('Account API', () => {
       expect(envelopes).toHaveLength(0)
     })
 
+    it('prevents full attack chain: stolen session cannot revoke devices to reset E2EE state', async () => {
+      // Setup: user with 2 trusted devices, both with envelopes, E2EE fully active
+      const userId = p('attack-chain-user')
+      const token = p('attack-chain-token')
+      const attackerDeviceId = p('attacker-device')
+      const victimDevice1 = p('victim-device-1')
+      const victimDevice2 = p('victim-device-2')
+      const now = await createUserSessionAndDevice(userId, token, victimDevice1)
+      await insertCanaryWithSecret(userId)
+
+      await db.insert(devicesTable).values({
+        id: victimDevice2,
+        userId,
+        name: 'Victim Device 2',
+        trusted: true,
+        lastSeen: now,
+        createdAt: now,
+      })
+
+      await db.insert(envelopesTable).values([
+        { deviceId: victimDevice1, userId, wrappedCk: 'victim-ck-1', updatedAt: now },
+        { deviceId: victimDevice2, userId, wrappedCk: 'victim-ck-2', updatedAt: now },
+      ])
+
+      // Attack step 1: Try to revoke device 1 without canary proof
+      const attack1 = await app.handle(revokeRequest(victimDevice1, token, { callerDeviceId: victimDevice1 }))
+      expect(attack1.status).toBe(403)
+
+      // Attack step 2: Try to revoke device 2 with a guessed canary
+      const attack2 = await app.handle(
+        revokeRequest(victimDevice2, token, {
+          callerDeviceId: victimDevice1,
+          canarySecret: 'attacker-guess',
+        }),
+      )
+      expect(attack2.status).toBe(403)
+
+      // Attack step 3: Try from an untrusted attacker device
+      await db.insert(devicesTable).values({
+        id: attackerDeviceId,
+        userId,
+        name: 'Attacker Device',
+        trusted: false,
+        lastSeen: now,
+        createdAt: now,
+      })
+      const attack3 = await app.handle(
+        revokeRequest(victimDevice1, token, {
+          callerDeviceId: attackerDeviceId,
+          canarySecret: testCanarySecret,
+        }),
+      )
+      expect(attack3.status).toBe(403)
+
+      // Verify: both envelopes still intact, both devices still trusted
+      const envelopes = await db.select().from(envelopesTable).where(eq(envelopesTable.userId, userId))
+      expect(envelopes).toHaveLength(2)
+
+      const [d1] = await db.select().from(devicesTable).where(eq(devicesTable.id, victimDevice1))
+      expect(d1.trusted).toBe(true)
+      expect(d1.revokedAt).toBeNull()
+
+      const [d2] = await db.select().from(devicesTable).where(eq(devicesTable.id, victimDevice2))
+      expect(d2.trusted).toBe(true)
+      expect(d2.revokedAt).toBeNull()
+    })
+
     it('returns 204 without canarySecret for pre-encryption user (no E2EE metadata)', async () => {
       const userId = p('pre-enc-user')
       const token = p('pre-enc-token')
