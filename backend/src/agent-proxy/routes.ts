@@ -17,14 +17,35 @@ type ElysiaWS = {
 /** Parse apiKey from the agent's authMethod JSON column. */
 export const parseApiKey = (authMethod: string | null): string | null => {
   if (!authMethod) return null
+  let parsed: unknown
   try {
-    const parsed = JSON.parse(authMethod) as { apiKey?: string }
-    if (!parsed.apiKey) {
-      console.warn('[agent-proxy] authMethod JSON present but contains no apiKey field')
-    }
-    return parsed.apiKey ?? null
+    parsed = JSON.parse(authMethod)
   } catch {
     console.error('[agent-proxy] authMethod is not valid JSON — agent credentials will not be sent')
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    console.warn('[agent-proxy] authMethod JSON is not an object — credentials will not be sent')
+    return null
+  }
+  const apiKey = (parsed as { apiKey?: unknown }).apiKey
+  if (typeof apiKey !== 'string' || apiKey.length === 0) {
+    console.warn('[agent-proxy] authMethod object has no string apiKey field')
+    return null
+  }
+  return apiKey
+}
+
+/**
+ * Parses a raw WebSocket message from the downstream client into a JSON object.
+ * Returns null if the message is a string that fails JSON parsing, so callers
+ * can report a JSON-RPC parse error without crashing the relay.
+ */
+export const parseClientMessage = (message: unknown): Record<string, unknown> | null => {
+  if (typeof message !== 'string') return message as Record<string, unknown>
+  try {
+    return JSON.parse(message) as Record<string, unknown>
+  } catch {
     return null
   }
 }
@@ -61,8 +82,9 @@ const openWsRelay = (ws: ElysiaWS, url: string, apiKey: string | null): WsConnec
     ws.close(event.code ?? 1000, event.reason ?? '')
   })
 
-  upstream.addEventListener('error', () => {
-    console.error(`[agent-proxy] Upstream WS error for url: ${url}`)
+  upstream.addEventListener('error', (event) => {
+    const detail = (event as ErrorEvent).message ?? 'unknown'
+    console.error(`[agent-proxy] Upstream WS error for url=${url}: ${detail}`)
     if (state.closed) return
     state.closed = true
     connections.delete(ws.id)
@@ -154,7 +176,12 @@ const openHttpRelay = (url: string, apiKey: string | null): HttpConnectionState 
 const safeFetch = createSafeFetch(globalThis.fetch)
 
 const handleHttpMessage = async (ws: ElysiaWS, message: unknown, state: HttpConnectionState) => {
-  const msg = (typeof message === 'string' ? JSON.parse(message) : message) as Record<string, unknown>
+  const msg = parseClientMessage(message)
+  if (msg === null) {
+    console.warn('[agent-proxy] Dropped non-JSON client message:', String(message).slice(0, 200))
+    ws.send(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null }))
+    return
+  }
   const msgType = classifyMessage(msg)
 
   const headers: Record<string, string> = {
@@ -232,6 +259,11 @@ const handleHttpMessage = async (ws: ElysiaWS, message: unknown, state: HttpConn
 
 type ConnectionState = WsConnectionState | HttpConnectionState
 const connections = new Map<string, ConnectionState>()
+
+/** Clears the in-memory connection store. Used by tests to isolate state between test runs. */
+export const clearConnections = (): void => {
+  connections.clear()
+}
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 

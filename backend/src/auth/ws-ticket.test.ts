@@ -1,9 +1,30 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
-import { _resetTicketsForTesting, consumeWsTicket, createWsTicket } from './ws-ticket'
+import { beforeEach, describe, expect, it, spyOn } from 'bun:test'
+import { clearTickets, consumeWsTicket, createWsTicket } from './ws-ticket'
 
 describe('ws-ticket', () => {
   beforeEach(() => {
-    _resetTicketsForTesting()
+    clearTickets()
+  })
+
+  it('returns null when the ticket has expired', () => {
+    const nowSpy = spyOn(Date, 'now')
+    nowSpy.mockReturnValue(1_000_000)
+    const ticket = createWsTicket('user-1')
+    nowSpy.mockReturnValue(1_000_000 + 30_001) // past TTL
+    expect(consumeWsTicket(ticket)).toBeNull()
+    nowSpy.mockRestore()
+  })
+
+  it('throws when ticket store is at capacity', () => {
+    const nowSpy = spyOn(Date, 'now')
+    // Freeze time so the eviction pass (triggered at MAX_TICKETS/2) finds
+    // nothing expired and the store fills to exactly MAX_TICKETS.
+    nowSpy.mockReturnValue(1_000_000)
+    for (let i = 0; i < 10_000; i++) {
+      createWsTicket(`user-${i}`)
+    }
+    expect(() => createWsTicket('overflow')).toThrow('Ticket store at capacity')
+    nowSpy.mockRestore()
   })
 
   it('generates a 64-character hex ticket', () => {

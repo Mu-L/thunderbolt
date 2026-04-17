@@ -61,7 +61,7 @@ export const consumeWsTicket = (ticketId: string): { userId: string; payload?: R
   return { userId: ticket.userId, payload: ticket.payload }
 }
 
-/** Test-only: clears the ticket store. Do not use in production code. */
-export const _resetTicketsForTesting = (): void => {
+/** Clears the in-memory ticket store. Used by tests to isolate state between test runs. */
+export const clearTickets = (): void => {
   tickets.clear()
 }

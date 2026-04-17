@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { clearSettingsCache } from '@/config/settings'
+import type { ConsoleSpies } from '@/test-utils/console-spies'
+import { setupConsoleSpy } from '@/test-utils/console-spies'
 import type { AgentDescriptor, AgentProvider } from './types'
 
 // We test the route logic by calling the Elysia app directly via .handle()
@@ -15,6 +17,15 @@ const agent3: AgentDescriptor = { id: 'a3', name: 'Agent 3', type: 'remote', tra
 
 const ENV_KEYS = ['ENABLED_AGENTS'] as const
 let savedEnv: Partial<Record<string, string | undefined>>
+let consoleSpies: ConsoleSpies
+
+beforeAll(() => {
+  consoleSpies = setupConsoleSpy()
+})
+
+afterAll(() => {
+  consoleSpies.restore()
+})
 
 beforeEach(() => {
   clearSettingsCache()
@@ -86,5 +97,20 @@ describe('Agent routes', () => {
     const res = await app.handle(new Request('http://localhost/agents'))
     const json = (await res.json()) as { agents: AgentDescriptor[] }
     expect(json.agents).toHaveLength(2)
+  })
+
+  it('returns fulfilled provider agents when another provider rejects', async () => {
+    consoleSpies.error.mockClear()
+    const rejectingProvider: AgentProvider = {
+      getAgents: async () => {
+        throw new Error('boom')
+      },
+    }
+    const app = createAgentsRoutes([rejectingProvider, makeProvider([agent1, agent2])])
+    const res = await app.handle(new Request('http://localhost/agents'))
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { agents: AgentDescriptor[] }
+    expect(json.agents.map((a) => a.id)).toEqual(['a1', 'a2'])
+    expect(consoleSpies.error).toHaveBeenCalled()
   })
 })

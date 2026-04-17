@@ -1,8 +1,15 @@
 import type { ConsoleSpies } from '@/test-utils/console-spies'
 import { setupConsoleSpy } from '@/test-utils/console-spies'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { classifyMessage, createAgentProxyRoutes, parseApiKey, parseSSEStream } from './routes'
-import { _resetTicketsForTesting, consumeWsTicket, createWsTicket } from '@/auth/ws-ticket'
+import {
+  classifyMessage,
+  clearConnections,
+  createAgentProxyRoutes,
+  parseApiKey,
+  parseClientMessage,
+  parseSSEStream,
+} from './routes'
+import { clearTickets, consumeWsTicket, createWsTicket } from '@/auth/ws-ticket'
 
 let consoleSpies: ConsoleSpies
 beforeAll(() => {
@@ -13,7 +20,8 @@ afterAll(() => {
 })
 
 beforeEach(() => {
-  _resetTicketsForTesting()
+  clearTickets()
+  clearConnections()
 })
 
 describe('parseApiKey', () => {
@@ -39,6 +47,41 @@ describe('parseApiKey', () => {
 
   it('returns null for JSON without object shape', () => {
     expect(parseApiKey('"just a string"')).toBeNull()
+  })
+
+  it('returns null cleanly for JSON "null" without throwing', () => {
+    consoleSpies.warn.mockClear()
+    expect(parseApiKey('null')).toBeNull()
+    expect(consoleSpies.warn).toHaveBeenCalledWith(
+      '[agent-proxy] authMethod JSON is not an object — credentials will not be sent',
+    )
+  })
+
+  it('returns null for JSON array', () => {
+    expect(parseApiKey('[]')).toBeNull()
+  })
+
+  it('returns null for empty string apiKey', () => {
+    expect(parseApiKey('{"apiKey":""}')).toBeNull()
+  })
+
+  it('returns null when apiKey is non-string', () => {
+    expect(parseApiKey('{"apiKey":123}')).toBeNull()
+  })
+})
+
+describe('parseClientMessage', () => {
+  it('parses valid JSON strings', () => {
+    expect(parseClientMessage('{"method":"ping","id":1}')).toEqual({ method: 'ping', id: 1 })
+  })
+
+  it('returns null for non-JSON strings', () => {
+    expect(parseClientMessage('not json')).toBeNull()
+  })
+
+  it('passes through non-string objects as-is', () => {
+    const obj = { method: 'ping', id: 1 }
+    expect(parseClientMessage(obj)).toBe(obj)
   })
 })
 
@@ -130,6 +173,19 @@ describe('parseSSEStream', () => {
     const huge = 'data: ' + 'x'.repeat(11 * 1024 * 1024) + '\n\n'
     const body = encode(huge)
     await expect(collect(parseSSEStream(body))).rejects.toThrow('SSE buffer exceeded size limit')
+  })
+
+  it('handles multi-chunk streams where frames span multiple reads', async () => {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"a":1}\n'))
+        controller.enqueue(encoder.encode('\ndata: {"b":2}\n\n'))
+        controller.close()
+      },
+    })
+    const events = await collect(parseSSEStream(body))
+    expect(events).toEqual([{ a: 1 }, { b: 2 }])
   })
 })
 
