@@ -37,7 +37,8 @@ class PlatformUtilsPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun setBarColor(invoke: Invoke) {
         activity.runOnUiThread {
-            val style = invoke.getString("style") ?: "system"
+            val args = invoke.getArgs()
+            val style = args.getString("style", "system") ?: "system"
             val window = activity.window
             val controller = WindowInsetsControllerCompat(window, window.decorView)
 
